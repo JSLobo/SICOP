@@ -1,0 +1,1 @@
+- Install cv2 - 4.2.0: conda install -c conda-forge opencv
