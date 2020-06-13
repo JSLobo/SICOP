@@ -1,1 +1,5 @@
 - Install cv2 - 4.2.0: conda install -c conda-forge opencv
+- Install matplotlib
+- Install scipy
+- Install scikit-image
+-
