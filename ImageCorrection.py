@@ -4,13 +4,15 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 from skimage import color
 import cv2
+import math
+import random as rng
 
 
 def correct_angle(img_obj):
     print("Correcting image angle")
     image = img_obj.get_image()
     queryImg = image
-    img = queryImg.copy() - createMask_filled_byPlants(queryImg)
+    img = queryImg.copy() - create_mask_filled_by_plants(queryImg)
 
     fig, (ax1) = plt.subplots(nrows=1, ncols=1, constrained_layout=False, figsize=(16, 9))
     ax1.imshow(img, cmap="gray")
@@ -277,7 +279,7 @@ def get_largest_line_setup(thresholded_image):
     return voting_options[voting_election[1]]
 
 
-def createMask_filled_byPlants(RGB_image):
+def create_mask_filled_by_plants(RGB_image):
     # Convert RGB image to chosen color space
     I = color.rgb2lab(RGB_image, illuminant="D50")
 
@@ -345,3 +347,132 @@ def rotate_image(mat, angle):
     # rotate image with the new bounds and translated rotation matrix
     rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
     return rotated_mat
+
+
+def find_major_rectangle_area(set_of_rects_coordinates):
+    rects_area = np.empty(len(set_of_rects_coordinates))
+    index = 0
+    for rect_tuple in set_of_rects_coordinates:
+        rects_area[index] = int(rect_tuple[3] * rect_tuple[2])
+        index += 1
+    max_index = np.argmax(rects_area, axis=0)
+    print(max_index)
+
+    return max_index
+
+
+def get_seedbed_contour_rect_coordinates(RGB_image):
+    print("Getting seedbed contour rect coordinates")
+    #   Using object centroid coordinates to compute distance between
+
+    #   1 - Get individual plant bounding circle
+    im_gray = cv2.cvtColor(RGB_image, cv2.COLOR_BGR2GRAY)
+    ret, thresh = cv2.threshold(im_gray, 127, 255, 0)
+    fig, ax1 = plt.subplots(figsize=(16, 9))
+    ax1.imshow(RGB_image)
+    ax1.set_xlabel("Plant mask binarizes", fontsize=14)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # print(type(hierarchy))
+    print(len(contours[500]))
+
+    # Approximate contours to polygons + get bounding circles
+    contours_poly = [None] * len(contours)
+    centers = [None] * len(contours)
+    radius = [None] * len(contours)
+    for i, c in enumerate(contours):
+        contours_poly[i] = cv2.approxPolyDP(c, 3, True)
+        centers[i], radius[i] = cv2.minEnclosingCircle(contours_poly[i])
+    circles_contour = [centers, radius]
+    print(radius)
+    print(len(radius))
+
+    drawing = np.zeros((im_gray.shape[0], im_gray.shape[1], 3), dtype=np.uint8)
+    # Draw polygonal contour + bounding circles
+    for i in range(len(contours)):
+        color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
+        im_with_contours = cv2.drawContours(drawing, contours_poly, i, color)
+        # im_with_contours = cv2.drawContours(RGB_image.copy(), contours, -1, (0,0,255), 2)
+        im_with_circle_bounding = cv2.circle(drawing, (int(centers[i][0]), int(centers[i][1])), int(radius[i]), color,
+                                             2)
+
+    #   2 - Get maximum radius value of individuals plants bounding circles
+
+    print("Radius maximum value: ", math.ceil(max(radius)))
+
+    max_radius = math.ceil(max(radius))
+    kernel_width = math.ceil(max_radius * 2)
+    kernel_height = math.ceil(max_radius)
+    #   3 - Getting circular structuring element
+    circular_structure = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_width, kernel_height))
+
+    #   4 - Getting seedbeds using circular structuring element and an opening
+    for i in range(0, 1, 1):
+        # img_erode = cv2.erode(thresh, circular_structure) #---- resalta lo brillante en forma circular
+        # img = cv2.dilate(img_erode, circular_structure) #---- reduce los artefactos oscuros
+        im_dilated = cv2.dilate(thresh, circular_structure)
+
+    #   5 - Isolate main seedbed
+    seedbed_contours, seedbed_hierarchy = cv2.findContours(im_dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # print(type(seedbed_contours))
+    # seedbed_contours = max(seedbed_contours, key=cv2.contourArea)
+    # print(type(seedbed_contours))
+    #   6 - Getting main seedbed polygon
+    # Approximate contours to polygons + get bounding rects
+    contours_poly = [None] * len(seedbed_contours)
+    bound_rect = [None] * len(seedbed_contours)
+    for i, c in enumerate(seedbed_contours):
+        contours_poly[i] = cv2.approxPolyDP(c, 3, True)
+        bound_rect[i] = cv2.boundingRect(contours_poly[i])
+    print(bound_rect)
+    print(len(bound_rect))
+    # print(type(bound_rect))
+    # bound_rect = max(bound_rect, key=cv2.contourArea)
+    # bound_rect = get_mayor_area_boundrect(bound_rec)
+    # print(type(bound_rect))
+    drawing_im = np.zeros((im_gray.shape[0], im_gray.shape[1], 3), dtype=np.uint8)
+    # Draw polygonal contour + bounding circles
+    for i in range(len(seedbed_contours)):  # len(seedbed_contours)
+        color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
+        im_with_contours = cv2.drawContours(drawing_im, contours_poly, i, color)
+        # im_with_contours = cv2.drawContours(RGB_image.copy(), contours, -1, (0,0,255), 2)
+        im_with_rect_bounding = cv2.rectangle(drawing_im, (int(bound_rect[i][0]), int(bound_rect[i][1])), \
+                                              (int(bound_rect[i][0] + bound_rect[i][2]),
+                                               int(bound_rect[i][1] + bound_rect[i][3])), color, 2)
+
+    max_area_rect_index = find_major_rectangle_area(bound_rect)
+
+    drawing_seedbed = np.zeros((im_gray.shape[0], im_gray.shape[1], 3), dtype=np.uint8)
+    color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
+    seedbed_with_contours = cv2.drawContours(drawing_seedbed, contours_poly, i, color)
+    # im_with_contours = cv2.drawContours(RGB_image.copy(), contours, -1, (0,0,255), 2)
+    seedbed_with_rect_bounding = cv2.rectangle(drawing_seedbed, (
+    int(bound_rect[max_area_rect_index][0]), int(bound_rect[max_area_rect_index][1])), \
+                                               (int(
+                                                   bound_rect[max_area_rect_index][0] + bound_rect[max_area_rect_index][
+                                                       2]), int(
+                                                   bound_rect[max_area_rect_index][1] + bound_rect[max_area_rect_index][
+                                                       3])), color, 2)
+    max_area_rect_atributes = bound_rect[max_area_rect_index]
+    top_left = (max_area_rect_atributes[0], max_area_rect_atributes[1])
+    bottom_left = (max_area_rect_atributes[0], max_area_rect_atributes[1] + max_area_rect_atributes[3])
+    top_right = (max_area_rect_atributes[0] + max_area_rect_atributes[2], max_area_rect_atributes[1])
+    bottom_right = (
+    max_area_rect_atributes[0] + max_area_rect_atributes[2], max_area_rect_atributes[1] + max_area_rect_atributes[3])
+    seedbed_coordinates = (top_left, top_right, bottom_left, bottom_right)
+
+    return seedbed_coordinates, circles_contour, im_with_rect_bounding, seedbed_with_rect_bounding
+
+
+def get_seedbed_mask(image, seedbed_coordinates):  # 10_Frames_zona_de_plantulas
+    print("Getting_seed_bed_mask")
+    # This function get an image with just the seedbed
+    drawing_mask = np.zeros((image.shape[0], image.shape[1], 3), dtype=np.uint8)
+    drawing_mask[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :] = image[seedbed_coordinates[0][1]:
+                                                                                    seedbed_coordinates[2][1], :, :]
+    seedbed_mask = drawing_mask
+    # print(seedbed_coordinates[0][1], seedbed_coordinates[2][1])
+    return seedbed_mask
+
+
+def homogenize_image_set(path):
+    print("Homogenizing image set...")
