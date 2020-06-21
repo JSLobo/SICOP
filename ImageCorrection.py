@@ -328,7 +328,8 @@ def rotate_image(mat, angle):
 
     height, width = mat.shape[:2]  # image shape has 3 dimensions
     image_center = (
-    width / 2, height / 2)  # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+        width / 2,
+        height / 2)  # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
 
     rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
 
@@ -446,7 +447,7 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
     seedbed_with_contours = cv2.drawContours(drawing_seedbed, contours_poly, i, color)
     # im_with_contours = cv2.drawContours(RGB_image.copy(), contours, -1, (0,0,255), 2)
     seedbed_with_rect_bounding = cv2.rectangle(drawing_seedbed, (
-    int(bound_rect[max_area_rect_index][0]), int(bound_rect[max_area_rect_index][1])), \
+        int(bound_rect[max_area_rect_index][0]), int(bound_rect[max_area_rect_index][1])), \
                                                (int(
                                                    bound_rect[max_area_rect_index][0] + bound_rect[max_area_rect_index][
                                                        2]), int(
@@ -457,7 +458,8 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
     bottom_left = (max_area_rect_atributes[0], max_area_rect_atributes[1] + max_area_rect_atributes[3])
     top_right = (max_area_rect_atributes[0] + max_area_rect_atributes[2], max_area_rect_atributes[1])
     bottom_right = (
-    max_area_rect_atributes[0] + max_area_rect_atributes[2], max_area_rect_atributes[1] + max_area_rect_atributes[3])
+        max_area_rect_atributes[0] + max_area_rect_atributes[2],
+        max_area_rect_atributes[1] + max_area_rect_atributes[3])
     seedbed_coordinates = (top_left, top_right, bottom_left, bottom_right)
 
     return seedbed_coordinates, circles_contour, im_with_rect_bounding, seedbed_with_rect_bounding
@@ -474,5 +476,23 @@ def get_seedbed_mask(image, seedbed_coordinates):  # 10_Frames_zona_de_plantulas
     return seedbed_mask
 
 
+def delete_repeated_frames(frames_list):
+    print("Deleting repeated frames...")
+    return frames_list
+
+
+def split_video_frames():
+    print("Splitting video frames")
+    frames_list = []
+    frames_list = delete_repeated_frames(frames_list)
+    return frames_list
+
+
 def homogenize_image_set(path):
     print("Homogenizing image set...")
+    #  Splits video
+    frames_list = split_video_frames(path)
+    images_list = []
+    for each_frame in frames_list:
+        img_obj = correct_angle(imgObj.ImageObj(each_frame))
+        images_list.append(img_obj)

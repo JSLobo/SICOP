@@ -4,7 +4,6 @@
     <list default="true" id="825192d3-a6c5-4c85-826e-0b18221f6cb3" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ImageCorrection.py" beforeDir="false" afterPath="$PROJECT_DIR$/ImageCorrection.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/required_modules.txt" beforeDir="false" afterPath="$PROJECT_DIR$/required_modules.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -92,5 +91,15 @@
       <screen x="1440" y="0" width="1280" height="1024" />
     </state>
     <state x="1859" y="203" width="432" height="616" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/67.151.1373.873/1440.0.1280.1024@1440.0.1280.1024" timestamp="1591991158403" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/ImageCorrection.py</url>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
