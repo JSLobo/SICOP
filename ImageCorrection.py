@@ -6,6 +6,7 @@ from skimage import color
 import cv2
 import math
 import random as rng
+import os
 
 
 def correct_angle(img_obj):
@@ -465,13 +466,22 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
     return seedbed_coordinates, circles_contour, im_with_rect_bounding, seedbed_with_rect_bounding
 
 
-def get_seedbed_mask(image, seedbed_coordinates):  # 10_Frames_zona_de_plantulas
+def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas
     print("Getting_seed_bed_mask")
+    image = img_obj.get_image()
+    # 1 - Gets plants mask
+    mask = create_mask_filled_by_plants(image)
+    # gray_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+
+    # 2 - Gets seedbed contour rect coordinates
+    seedbed_coordinates, circulars_contour, im_tresh, seedbed_thresh = get_seedbed_contour_rect_coordinates(mask)
+    #print(seedbed_coordinates)
     # This function get an image with just the seedbed
     drawing_mask = np.zeros((image.shape[0], image.shape[1], 3), dtype=np.uint8)
     drawing_mask[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :] = image[seedbed_coordinates[0][1]:
                                                                                     seedbed_coordinates[2][1], :, :]
-    seedbed_mask = drawing_mask
+    seedbed_mask = imgObj.ImageObj(drawing_mask)
+
     # print(seedbed_coordinates[0][1], seedbed_coordinates[2][1])
     return seedbed_mask
 
@@ -481,11 +491,93 @@ def delete_repeated_frames(frames_list):
     return frames_list
 
 
-def split_video_frames():
+def split_video_frames(VIDEO_PATH):
     print("Splitting video frames")
+    IMAGE_DESTINY = ""
     frames_list = []
+    # Read the video from specified path
+    cap = cv2.VideoCapture(VIDEO_PATH + "VID_20200117_085313.mp4")
+
+    try:
+
+        # creating a folder named data
+        if not os.path.exists(IMAGE_DESTINY + 'data_experiment_1'):
+            os.makedirs(IMAGE_DESTINY + 'data_experiment_1')
+
+            # if not created then raise error
+    except OSError:
+        print('Error: Creating directory of data')
+
+        # fps = cap.get(5)
+    # time_length = cap.get(7)/fps
+    # frame_seq = 749
+    # frame_no = (frame_seq /(time_length*fps))
+    # print("Time length: ", time_length)
+    # frame
+    current_frame_name = 1000
+    currentframe = 0
+
+    while (True):
+
+        # reading from frame
+        ret, frame = cap.read()
+
+        if ret:
+            # if video is still left continue creating images
+            name = IMAGE_DESTINY + 'data_experiment_1/' + str(current_frame_name) + '_frame.jpg'
+            print('Creating...' + name)
+
+            # Rotating 180º the frame
+
+            '''rows,cols = frame.shape[:2]
+            center = (cols/2, rows/2)
+            angle90 = 90
+            angle180 = 180
+            angle270 = 270
+            scale = 1
+
+            M = cv2.getRotationMatrix2D(center,angle270,scale)
+            frame = cv2.warpAffine(frame,M,(cols,rows))'''
+
+            frame = rotate_image(frame, 270)
+
+            # writing the extracted images
+            cv2.imwrite(name, frame)
+
+            # increasing counter so that it will
+            # show how many frames are created
+            currentframe += 1
+            current_frame_name += 1
+            cap.set(cv2.CAP_PROP_POS_FRAMES, currentframe * 15)
+        else:
+            break
+
+    # Release all space and windows once done
+    cap.release()
+    cv2.destroyAllWindows()
     frames_list = delete_repeated_frames(frames_list)
     return frames_list
+
+
+def establish_scaling_factor(image_obj_list):
+    print("Stablishing scaling factor")
+    scaling_factor = 1
+    return scaling_factor
+
+
+def scale(image_obj_list, factor):
+    print("Scaling image objects list by factor")
+    return image_obj_list
+
+
+def center(image_obj):
+    print("Centering image object")
+    return image_obj
+
+
+def trim(image_obj):
+    print("Trimming image object")
+    return image_obj
 
 
 def homogenize_image_set(path):
@@ -493,6 +585,19 @@ def homogenize_image_set(path):
     #  Splits video
     frames_list = split_video_frames(path)
     images_list = []
+    final_images_list = []
     for each_frame in frames_list:
-        img_obj = correct_angle(imgObj.ImageObj(each_frame))
-        images_list.append(img_obj)
+        angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame))
+        seedbed_mask_img_obj = get_seedbed_mask(angle_corrected_img_obj)
+        images_list.append(seedbed_mask_img_obj)
+    scaling_factor = establish_scaling_factor(images_list)
+    scaled_images_list = scale(images_list, scaling_factor)
+    for each_img_obj in scaled_images_list:
+        centered_img_obj = center(each_img_obj)
+        trimmed_img_obj = trim(centered_img_obj)
+        final_images_list.append(trimmed_img_obj)
+    return final_images_list
+
+
+
+
