@@ -559,15 +559,34 @@ def split_video_frames(VIDEO_PATH):
     return frames_list
 
 
-def establish_scaling_factor(image_obj_list):
+def establish_reference_size_for_scaling(image_obj_list):
     print("Stablishing scaling factor")
-    scaling_factor = 1
-    return scaling_factor
+    first_time = True
+    reference_height = 0
+    for each_tuple in image_obj_list:
+        img = each_tuple[1].get_image()
+        height, width, channels = img.shape
+        if first_time or height < reference_height:
+            reference_height = height
+            first_time = False
+    return reference_height
 
 
-def scale(image_obj_list, factor):
+def scale(image_obj_list, reference_height):
     print("Scaling image objects list by factor")
-    return image_obj_list
+    scaled_img_obj_list = []
+    for each_tuple in image_obj_list:
+        img = each_tuple[1].get_image()
+        height, width, channels = img.shape
+        rescale_factor = reference_height/height
+        mask_dim = int((each_tuple[1].shape[1])*rescale_factor), int((each_tuple[1].shape[0])*rescale_factor)
+        scaled_mask = cv2.resize(each_tuple[1], mask_dim, interpolation=cv2.INTER_AREA)
+        scaled_mask_obj = imgObj.ImageObj(scaled_mask)
+        img_dim = int((each_tuple[0].shape[1])*rescale_factor), int((each_tuple[0].shape[0])*rescale_factor)
+        scaled_img = cv2.resize(each_tuple[0], mask_dim, interpolation=cv2.INTER_AREA)
+        scaled_img_obj = imgObj.ImageObj(scaled_img)
+        scaled_img_obj_list.append((scaled_img_obj, scaled_mask_obj))
+    return scaled_img_obj_list
 
 
 def center(image_obj):
@@ -589,8 +608,8 @@ def homogenize_image_set(path):
     for each_frame in frames_list:
         angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame))
         seedbed_mask_img_obj = get_seedbed_mask(angle_corrected_img_obj)
-        images_list.append(seedbed_mask_img_obj)
-    scaling_factor = establish_scaling_factor(images_list)
+        images_list.append((angle_corrected_img_obj, seedbed_mask_img_obj))
+    scaling_factor = establish_reference_size_for_scaling(images_list)
     scaled_images_list = scale(images_list, scaling_factor)
     for each_img_obj in scaled_images_list:
         centered_img_obj = center(each_img_obj)
