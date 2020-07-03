@@ -6,7 +6,9 @@ from skimage import color
 import cv2
 import math
 import random as rng
-import os
+from os import listdir
+from os.path import isfile, join
+import imageio
 
 
 def correct_angle(img_obj):
@@ -475,7 +477,7 @@ def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas
 
     # 2 - Gets seedbed contour rect coordinates
     seedbed_coordinates, circulars_contour, im_tresh, seedbed_thresh = get_seedbed_contour_rect_coordinates(mask)
-    #print(seedbed_coordinates)
+    # print(seedbed_coordinates)
     # This function get an image with just the seedbed
     drawing_mask = np.zeros((image.shape[0], image.shape[1], 3), dtype=np.uint8)
     drawing_mask[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :] = image[seedbed_coordinates[0][1]:
@@ -572,25 +574,48 @@ def establish_reference_size_for_scaling(image_obj_list):
     return reference_height
 
 
+def is_trash_frame(img_obj_plants_mask):
+    print("Deleting trash frames")
+    is_a_trash = False
+    return
+
+
 def scale(image_obj_list, reference_height):
     print("Scaling image objects list by factor")
     scaled_img_obj_list = []
     for each_tuple in image_obj_list:
         img = each_tuple[1].get_image()
         height, width, channels = img.shape
-        rescale_factor = reference_height/height
-        mask_dim = int((each_tuple[1].shape[1])*rescale_factor), int((each_tuple[1].shape[0])*rescale_factor)
+        rescale_factor = reference_height / height
+        mask_dim = int((each_tuple[1].shape[1]) * rescale_factor), int((each_tuple[1].shape[0]) * rescale_factor)
         scaled_mask = cv2.resize(each_tuple[1], mask_dim, interpolation=cv2.INTER_AREA)
         scaled_mask_obj = imgObj.ImageObj(scaled_mask)
-        img_dim = int((each_tuple[0].shape[1])*rescale_factor), int((each_tuple[0].shape[0])*rescale_factor)
-        scaled_img = cv2.resize(each_tuple[0], mask_dim, interpolation=cv2.INTER_AREA)
+        img_dim = int((each_tuple[0].shape[1]) * rescale_factor), int((each_tuple[0].shape[0]) * rescale_factor)
+        scaled_img = cv2.resize(each_tuple[0], img_dim, interpolation=cv2.INTER_AREA)
         scaled_img_obj = imgObj.ImageObj(scaled_img)
         scaled_img_obj_list.append((scaled_img_obj, scaled_mask_obj))
     return scaled_img_obj_list
 
 
-def center(image_obj):
+def set_standard_size_frame(img_obj_tuple, standard_size):
+    print("Setting standard size frame")
+    standard_frame_1 = np.zeros((standard_size[0], standard_size[1], 3), dtype=np.uint8)
+    standard_frame_2 = standard_frame_1.copy()
+    # set each image on the corner of the standard frame and each one will be centered with center function
+    # img_obj '0' --> original image
+    img_1 = img_obj_tuple[0].get_image()
+    standard_frame_1[0:img_1.shape[0] - 1, 0:img_1.shape[1] - 1] = img_1[:, :]
+
+    # img_obj '1' --> mask image
+    img_2 = img_obj_tuple[1].get_image()
+    standard_frame_2[0:img_2.shape[0] - 1, 0:img_2.shape[1] - 1] = img_2[:, :]
+    img_obj_tuple_output = imgObj.ImageObj(standard_frame_1), imgObj.ImageObj(standard_frame_2)
+    return img_obj_tuple_output
+
+
+def center_seedbed(image_obj):
     print("Centering image object")
+    get_seedbed_mask()
     return image_obj
 
 
@@ -605,18 +630,36 @@ def homogenize_image_set(path):
     frames_list = split_video_frames(path)
     images_list = []
     final_images_list = []
+    standard_size = frames_list[0].shape[0] * (1.25), frames_list[0].shape[1] * (1.25)
+    init_frame_found = False
     for each_frame in frames_list:
         angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame))
         seedbed_mask_img_obj = get_seedbed_mask(angle_corrected_img_obj)
-        images_list.append((angle_corrected_img_obj, seedbed_mask_img_obj))
+        if init_frame_found or not is_trash_frame(seedbed_mask_img_obj):
+            init_frame_found = True
+            images_list.append((angle_corrected_img_obj, seedbed_mask_img_obj))
     scaling_factor = establish_reference_size_for_scaling(images_list)
     scaled_images_list = scale(images_list, scaling_factor)
-    for each_img_obj in scaled_images_list:
-        centered_img_obj = center(each_img_obj)
-        trimmed_img_obj = trim(centered_img_obj)
+    for each_tuple in scaled_images_list:
+        standarized_frame_size_tuple = set_standard_size_frame(each_tuple, standard_size)
+        centered_img_obj_tuple = center_seedbed(standarized_frame_size_tuple)
+        trimmed_img_obj = trim(centered_img_obj_tuple[0])
         final_images_list.append(trimmed_img_obj)
     return final_images_list
 
 
-
-
+if __name__ == '__main__':
+    path = '/home/mrwolf/Projects/Gepar - UdeA/Flowers/Capiros - UdeA Project/REPO/SICOP/images/'
+    source_path = "../../images/"
+    files_path = [f for f in listdir(source_path) if isfile(join(source_path, f))]
+    files_path.sort()
+    output_name_counter = 1
+    for file_pointer in range(0, len(files_path), 1):
+        print(files_path[file_pointer])
+        image = imageio.imread(source_path + files_path[file_pointer])
+        standard_size = image.shape[0] * (1.25), image.shape[1] * (1.25)
+        standard_img_obj = set_standard_size_frame(imgObj.ImageObj(image), standard_size)
+        fig, (ax1) = plt.subplots(nrows=1, ncols=1, constrained_layout=False, figsize=(16, 9))
+        ax1.imshow(standard_img_obj.get_image())
+        ax1.set_xlabel("Image with standard size color", fontsize=14)
+        plt.show()
