@@ -6,6 +6,7 @@ from skimage import color
 import cv2
 import math
 import random as rng
+import os
 from os import listdir
 from os.path import isfile, join
 import imageio
@@ -465,7 +466,7 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
         max_area_rect_atributes[1] + max_area_rect_atributes[3])
     seedbed_coordinates = (top_left, top_right, bottom_left, bottom_right)
 
-    return seedbed_coordinates, circles_contour, im_with_rect_bounding, seedbed_with_rect_bounding
+    return seedbed_coordinates # , circles_contour, im_with_rect_bounding, seedbed_with_rect_bounding
 
 
 def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas
@@ -561,62 +562,69 @@ def split_video_frames(VIDEO_PATH):
     return frames_list
 
 
-def establish_reference_size_for_scaling(image_obj_list):
-    print("Stablishing scaling factor")
-    first_time = True
-    reference_height = 0
-    for each_tuple in image_obj_list:
-        img = each_tuple[1].get_image()
-        height, width, channels = img.shape
-        if first_time or height < reference_height:
-            reference_height = height
-            first_time = False
-    return reference_height
-
-
 def is_trash_frame(img_obj_plants_mask):
     print("Deleting trash frames")
     is_a_trash = False
     return
 
 
-def scale(image_obj_list, reference_height):
+def establish_reference_size_for_scaling(image_obj_list):
+    print("Stablishing scaling factor")
+    first_time = True
+    reference_height = 0
+    for each_tuple in image_obj_list:
+        height = (each_tuple[1])[2][1] - (each_tuple[1])[0][1]
+        # img = each_triplet[1].get_image()
+        # height, width, channels = img.shape
+        if first_time or height < reference_height:
+            reference_height = height
+            first_time = False
+    return reference_height
+
+
+def scale(image_obj_list, reference_height_factor):
     print("Scaling image objects list by factor")
     scaled_img_obj_list = []
     for each_tuple in image_obj_list:
-        img = each_tuple[1].get_image()
-        height, width, channels = img.shape
-        rescale_factor = reference_height / height
-        mask_dim = int((each_tuple[1].shape[1]) * rescale_factor), int((each_tuple[1].shape[0]) * rescale_factor)
-        scaled_mask = cv2.resize(each_tuple[1], mask_dim, interpolation=cv2.INTER_AREA)
-        scaled_mask_obj = imgObj.ImageObj(scaled_mask)
+        # img = each_triplet[1].get_image()
+        # height, width, channels = img.shape
+        height = (each_tuple[1])[2][1] - (each_tuple[1])[0][1]
+        rescale_factor = reference_height_factor / height
+        # mask_dim = int((each_triplet[1].shape[1]) * rescale_factor), int((each_triplet[1].shape[0]) * rescale_factor)
+        # scaled_mask = cv2.resize(each_triplet[1], mask_dim, interpolation=cv2.INTER_AREA)
+        # scaled_mask_obj = imgObj.ImageObj(scaled_mask)
         img_dim = int((each_tuple[0].shape[1]) * rescale_factor), int((each_tuple[0].shape[0]) * rescale_factor)
         scaled_img = cv2.resize(each_tuple[0], img_dim, interpolation=cv2.INTER_AREA)
         scaled_img_obj = imgObj.ImageObj(scaled_img)
-        scaled_img_obj_list.append((scaled_img_obj, scaled_mask_obj))
+        scaled_img_obj_list.append(scaled_img_obj)
     return scaled_img_obj_list
 
 
-def set_standard_size_frame(img_obj_tuple, standard_size):
+def set_standard_size_frame(img_obj_triplet, standard_size):
     print("Setting standard size frame")
     standard_frame_1 = np.zeros((standard_size[0], standard_size[1], 3), dtype=np.uint8)
     standard_frame_2 = standard_frame_1.copy()
     # set each image on the corner of the standard frame and each one will be centered with center function
     # img_obj '0' --> original image
-    img_1 = img_obj_tuple[0].get_image()
+    img_1 = img_obj_triplet[0].get_image()
     standard_frame_1[0:img_1.shape[0] - 1, 0:img_1.shape[1] - 1] = img_1[:, :]
 
     # img_obj '1' --> mask image
-    img_2 = img_obj_tuple[1].get_image()
+    img_2 = img_obj_triplet[1].get_image()
     standard_frame_2[0:img_2.shape[0] - 1, 0:img_2.shape[1] - 1] = img_2[:, :]
-    img_obj_tuple_output = imgObj.ImageObj(standard_frame_1), imgObj.ImageObj(standard_frame_2)
-    return img_obj_tuple_output
+    img_obj_triplet_output = imgObj.ImageObj(standard_frame_1), imgObj.ImageObj(standard_frame_2), img_obj_triplet[2]
+    return img_obj_triplet_output
 
 
-def center_seedbed(image_obj):
+def center_seedbed(image_obj, standard_size):
     print("Centering image object")
-    get_seedbed_mask()
-    return image_obj
+    complete_image = image_obj.get_image()
+    plants_mask = create_mask_filled_by_plants(complete_image)
+    seedbed_coordinates = get_seedbed_contour_rect_coordinates(plants_mask)
+    standard_frame = np.zeros((standard_size[0], standard_size[1], 3), dtype=np.uint8)
+    standard_frame[:, :, :] = complete_image[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :] # pending set in center by seedbed mask
+    centred_frame_standard_img_obj = imgObj.ImageObj(standard_frame)
+    return centred_frame_standard_img_obj
 
 
 def trim(image_obj):
@@ -627,23 +635,26 @@ def trim(image_obj):
 def homogenize_image_set(path):
     print("Homogenizing image set...")
     #  Splits video
-    frames_list = split_video_frames(path)
+    frames_list = split_video_frames(path) # pending generates frame_list into function
     images_list = []
     final_images_list = []
     standard_size = frames_list[0].shape[0] * (1.25), frames_list[0].shape[1] * (1.25)
     init_frame_found = False
     for each_frame in frames_list:
         angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame))
-        seedbed_mask_img_obj = get_seedbed_mask(angle_corrected_img_obj)
-        if init_frame_found or not is_trash_frame(seedbed_mask_img_obj):
+        plants_mask = create_mask_filled_by_plants(angle_corrected_img_obj.get_image())
+        seedbed_coordinates = get_seedbed_contour_rect_coordinates(plants_mask)
+        only_seedbed = get_seedbed_mask(angle_corrected_img_obj.get_image().copy(), seedbed_coordinates)
+        only_seedbed_img_obj = imgObj.ImageObj(only_seedbed)
+        if init_frame_found or not is_trash_frame(only_seedbed_img_obj):
             init_frame_found = True
-            images_list.append((angle_corrected_img_obj, seedbed_mask_img_obj))
+            images_list.append((angle_corrected_img_obj, seedbed_coordinates))
     scaling_factor = establish_reference_size_for_scaling(images_list)
     scaled_images_list = scale(images_list, scaling_factor)
-    for each_tuple in scaled_images_list:
-        standarized_frame_size_tuple = set_standard_size_frame(each_tuple, standard_size)
-        centered_img_obj_tuple = center_seedbed(standarized_frame_size_tuple)
-        trimmed_img_obj = trim(centered_img_obj_tuple[0])
+    for each_img_obj in scaled_images_list:
+        #standarized_frame_size_triplet = set_standard_size_frame(each_triplet, standard_size)
+        centered_img_obj = center_seedbed(each_img_obj, standard_size)
+        trimmed_img_obj = trim(centered_img_obj)
         final_images_list.append(trimmed_img_obj)
     return final_images_list
 
