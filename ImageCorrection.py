@@ -496,16 +496,16 @@ def delete_repeated_frames(frames_list):
 
 def split_video_frames(VIDEO_PATH):
     print("Splitting video frames")
-    IMAGE_DESTINY = ""
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     frames_list = []
     # Read the video from specified path
-    cap = cv2.VideoCapture(VIDEO_PATH + "VID_20200117_085313.mp4")
+    cap = cv2.VideoCapture(VIDEO_PATH + "VID_cucharita.mp4")
 
     try:
 
         # creating a folder named data
-        if not os.path.exists(IMAGE_DESTINY + 'data_experiment_1'):
-            os.makedirs(IMAGE_DESTINY + 'data_experiment_1')
+        if not os.path.exists(PATH_ROOT + '\1_VIDEO_SPLIT\\'):
+            os.makedirs(PATH_ROOT + '\1_VIDEO_SPLIT\\')
 
             # if not created then raise error
     except OSError:
@@ -527,7 +527,7 @@ def split_video_frames(VIDEO_PATH):
 
         if ret:
             # if video is still left continue creating images
-            name = IMAGE_DESTINY + 'data_experiment_1/' + str(current_frame_name) + '_frame.jpg'
+            name = PATH_ROOT + '\1_VIDEO_SPLIT\\' + str(current_frame_name) + '_frame.jpg'
             print('Creating...' + name)
 
             # Rotating 180º the frame
@@ -546,6 +546,7 @@ def split_video_frames(VIDEO_PATH):
 
             # writing the extracted images
             cv2.imwrite(name, frame)
+            frames_list.append(frame)
 
             # increasing counter so that it will
             # show how many frames are created
@@ -682,32 +683,49 @@ def trim_by_right(image_obj):
 def homogenize_image_set(path):
     print("Homogenizing image set...")
     #  Splits video
+    print("Started split_video_frames()")
     frames_list = split_video_frames(path) # pending generates frame_list into function
+    print("Finished successfully")
     images_list = []
     final_images_list = []
     standard_size = frames_list[0].shape[0] * (1.25), frames_list[0].shape[1] * (1.25)
     init_frame_found = False
     for each_frame in frames_list:
+        print("Started correct_angle()")
         angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame))
+        print("Finished successfully")
+        print("Started create_mask_filled_by_plants()")
         plants_mask = create_mask_filled_by_plants(angle_corrected_img_obj.get_image())
+        print("Finished successfully")
+        print("Started get_seedbed_contour_rect_coordinates()")
         seedbed_coordinates = get_seedbed_contour_rect_coordinates(plants_mask)
+        print("Finished successfully")
+        print("Started get_seedbed_mask()")
         only_seedbed = get_seedbed_mask(angle_corrected_img_obj.get_image().copy(), seedbed_coordinates)
+        print("Finished successfully")
         only_seedbed_img_obj = imgObj.ImageObj(only_seedbed)
         if init_frame_found or not is_trash_frame(only_seedbed_img_obj):
             init_frame_found = True
             images_list.append((angle_corrected_img_obj, seedbed_coordinates))
+    print("Started establish_reference_size_for_scaling()")
     scaling_factor = establish_reference_size_for_scaling(images_list)
+    print("Finished successfully")
+    print("Started escale()")
     scaled_images_list = scale(images_list, scaling_factor)
     for each_img_obj in scaled_images_list:
-        #standarized_frame_size_triplet = set_standard_size_frame(each_triplet, standard_size)
+        # standarized_frame_size_triplet = set_standard_size_frame(each_triplet, standard_size)
+        print("Started center_seedbed()")
         centered_img_obj = center_seedbed(each_img_obj, standard_size)
+        print("Finished successfully")
+        print("Started trim_by_right()")
         trimmed_img_obj = trim_by_right(centered_img_obj)
+        print("Finished successfully")
         final_images_list.append(trimmed_img_obj)
     return final_images_list
 
 
 if __name__ == '__main__':
-    path = '/home/mrwolf/Projects/Gepar - UdeA/Flowers/Capiros - UdeA Project/REPO/SICOP/images/'
+    """path = '/home/mrwolf/Projects/Gepar - UdeA/Flowers/Capiros - UdeA Project/REPO/SICOP/images/'
     source_path = "../../images/"
     files_path = [f for f in listdir(source_path) if isfile(join(source_path, f))]
     files_path.sort()
@@ -721,3 +739,8 @@ if __name__ == '__main__':
         ax1.imshow(standard_img_obj.get_image())
         ax1.set_xlabel("Image with standard size color", fontsize=14)
         plt.show()
+    """
+    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + '\VID_cucharita.mp4'
+    print("Started")
+    homogenize_image_set(VIDEO_PATH)
+    print("Finished with success")
