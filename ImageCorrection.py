@@ -622,13 +622,60 @@ def center_seedbed(image_obj, standard_size):
     plants_mask = create_mask_filled_by_plants(complete_image)
     seedbed_coordinates = get_seedbed_contour_rect_coordinates(plants_mask)
     standard_frame = np.zeros((standard_size[0], standard_size[1], 3), dtype=np.uint8)
-    standard_frame[:, :, :] = complete_image[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :] # pending set in center by seedbed mask
+    standard_frame_height_middle_point = int(np.ceil(standard_size[0]/2))
+    seedbed_height_middle_point = seedbed_coordinates[0][1] + int(np.ceil((seedbed_coordinates[2][1] - seedbed_coordinates[0][1])/2))
+    initial_row = standard_frame_height_middle_point - seedbed_height_middle_point
+    standard_frame[initial_row:, :, :] = complete_image[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :]
     centred_frame_standard_img_obj = imgObj.ImageObj(standard_frame)
     return centred_frame_standard_img_obj
 
 
-def trim(image_obj):
+def trim_by_right(image_obj):
     print("Trimming image object")
+    RGB = image_obj.get_image()
+    img_gray = cv2.cvtColor(RGB.copy(), cv2.COLOR_BGR2GRAY)
+    horizontal_stripe_projection = np.zeros(img_gray.shape[0])
+    # print("Shape gray img: ", img_gray.shape)
+    for each_row in range(0, img_gray.shape[0], 1):
+        pixel = img_gray[each_row, img_gray.shape[1] - 1]
+        # print("New column pixel: ", pixel)
+        counter = 0
+        # print(img_gray[img_gray.shape[0] - 2:img_gray.shape[0], 0:250])
+        # print(img_gray[img_gray.shape[0] - 1:img_gray.shape[0], 0:250])
+        while (pixel <= 1):
+            counter += 1
+            # print("Counter: ", counter)
+            pixel = img_gray[each_row][(img_gray.shape[1] - 1) - counter]
+            # print(pixel)
+        horizontal_stripe_projection[each_row] = counter
+    # print(vertical_stripe_projection)
+    print("Max horizontal projection is below 15%: ",
+          max(horizontal_stripe_projection) < int(np.ceil(img_gray.shape[1] * 0.10)))
+
+    outliers = []
+
+    threshold = 3
+    mean = np.mean(horizontal_stripe_projection)
+    std = np.std(horizontal_stripe_projection)
+    # print("Media: ", mean)
+    # print("STD: ", std)
+
+    for y in horizontal_stripe_projection:
+        z_score = (y - mean) / std
+        if np.abs(z_score) > threshold:
+            outliers.append(y)
+    if not outliers:
+        pixel_trim = max(horizontal_stripe_projection)
+        print("Pixels to trim by right side: ", int(pixel_trim))
+    else:
+        # print(outliers)
+        definitive_projection = horizontal_stripe_projection
+        for each_outlier in outliers:
+            definitive_projection = np.delete(definitive_projection, np.argwhere(definitive_projection == each_outlier))
+        pixel_trim = max(definitive_projection)
+        print("Pixels to trim by right side: ", int(pixel_trim))
+    RGB = RGB[:RGB.shape[0], :RGB.shape[1] - int(pixel_trim)]
+    image_obj = imgObj.ImageObj(RGB)
     return image_obj
 
 
@@ -654,7 +701,7 @@ def homogenize_image_set(path):
     for each_img_obj in scaled_images_list:
         #standarized_frame_size_triplet = set_standard_size_frame(each_triplet, standard_size)
         centered_img_obj = center_seedbed(each_img_obj, standard_size)
-        trimmed_img_obj = trim(centered_img_obj)
+        trimmed_img_obj = trim_by_right(centered_img_obj)
         final_images_list.append(trimmed_img_obj)
     return final_images_list
 
