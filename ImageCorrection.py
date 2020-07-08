@@ -491,7 +491,34 @@ def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas
 
 def delete_repeated_frames(frames_list):
     print("Deleting repeated frames...")
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    removed = 0
+    for idx in range(0, len(frames_list) - 2):
+        img1 = frames_list(idx)
+        img2 = frames_list(idx + 1)
+        img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+        img1_gray_double = np.array(img1_gray).astype(np.float)
+        img2_gray_double = np.array(img2_gray).astype(np.float)
+        R = corr2(img1_gray_double, img2_gray_double)
+        if R >= 0.9:
+            cv2.imwrite(PATH_ROOT + '\2_DELETED_REPEATED_FRAME\\' + str(idx) + '_frame.jpg', frames_list(idx))
+            del frames_list[idx]
+            removed = removed + 1
     return frames_list
+
+
+def mean2(x):
+    y = np.sum(x) / np.size(x);
+    return y
+
+
+def corr2(a, b):
+    a = a - mean2(a)
+    b = b - mean2(b)
+
+    r = (a*b).sum() / math.sqrt((a*a).sum() * (b*b).sum());
+    return r
 
 
 def split_video_frames(VIDEO_PATH):
@@ -684,7 +711,7 @@ def homogenize_image_set(path):
     print("Homogenizing image set...")
     #  Splits video
     print("Started split_video_frames()")
-    frames_list = split_video_frames(path) # pending generates frame_list into function
+    frames_list = split_video_frames(path)  # pending generates frame_list into function
     print("Finished successfully")
     images_list = []
     final_images_list = []
