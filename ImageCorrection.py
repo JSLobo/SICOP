@@ -838,4 +838,4 @@ if __name__ == '__main__':
     VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + '/VID_cucharita.mp4'
     print("Started")
     homogenize_image_set(VIDEO_PATH)
-    print("Finished with success")
+    print("Finished with success =D")
