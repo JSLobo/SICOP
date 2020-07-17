@@ -8,6 +8,7 @@ import math
 import random as rng
 import os
 from datetime import datetime
+import platform
 from os import listdir
 from os.path import isfile, join
 import imageio
@@ -16,11 +17,16 @@ import imageio
 def correct_angle(img_obj, idx):
     print("Correcting image angle")
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + '/4_ANGLE_CORRECTED_FRAME/'):
-            os.makedirs(PATH_ROOT + '/4_ANGLE_CORRECTED_FRAME/')
+        if not os.path.exists(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -189,7 +195,7 @@ def correct_angle(img_obj, idx):
     # 10 - Correct angle in original img
     rotation_on_original_image = rotate_image(queryImg, result[0])
     # cropped_img, blackAndWhiteImage, rotation_on_original_image
-    cv2.imwrite(PATH_ROOT + '/4_ANGLE_CORRECTED_FRAME/' + str(idx) + '_frame.jpg', rotation_on_original_image)
+    cv2.imwrite(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH + str(idx) + '_frame.jpg', rotation_on_original_image)
     img_obj = imgObj.ImageObj(rotation_on_original_image, 0, 0)
 
     return img_obj
@@ -389,7 +395,7 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
     # fig, ax1 = plt.subplots(figsize=(16, 9))
     # ax1.imshow(RGB_image)
     # ax1.set_xlabel("Plant mask binarizes", fontsize=14)
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    source_image, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # print(type(hierarchy))
     # print(len(contours[500]))
 
@@ -430,7 +436,7 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
         im_dilated = cv2.dilate(thresh, circular_structure)
 
     #   5 - Isolate main seedbed
-    seedbed_contours, seedbed_hierarchy = cv2.findContours(im_dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(im_dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # print(type(seedbed_contours))
     # seedbed_contours = max(seedbed_contours, key=cv2.contourArea)
     # print(type(seedbed_contours))
@@ -482,7 +488,7 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
     return seedbed_coordinates # , circles_contour, im_with_rect_bounding, seedbed_with_rect_bounding
 
 
-def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas
+def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas alternative solution
     print("Getting_seed_bed_mask")
     image = img_obj.get_image()
     # 1 - Gets plants mask
@@ -502,6 +508,44 @@ def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas
     return seedbed_mask
 
 
+def get_seedbed_coordinates(image, idx):
+    print("Getting_seedbed_mask")
+    # 1 - Gets plants mask
+    mask = create_mask_filled_by_plants(image)
+    coordinates = []
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
+    try:
+
+        # creating a folder named data
+        if not os.path.exists(PATH_ROOT + SLASH + '5_SEEDBED_MASK' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '5_SEEDBED_MASK' + SLASH)
+
+            # if not created then raise error
+    except OSError:
+        print('Error: Creating directory of data')
+    rows, cols = image.shape[0], image.shape[1]
+    limit_area = (rows*cols)*0.05
+    SE = cv2.getStructuringElement(cv2.MORPH_RECT, (1000, 1))  # horizontal line
+    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 40))  # vertical line
+    SE2 = cv2.getStructringElement(cv2.MORPH_RECT, (cols*2, 1))  # horizontal line
+    SE3 = cv2.getStructuringElement(cv2.MORPH_CROSS, (11,11))  # diamond
+
+    img_gray = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2GRAY)
+    threshold_value, img_thres = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    dilated_img_thres = cv2.dilate(img_thres, SE)
+    closing_img_thres = cv2.morphologyEx(dilated_img_thres, cv2.MORPH_CLOSE, SE3)
+    # removes small objects
+    
+    seedbed_mask = []
+    cv2.imwrite(PATH_ROOT + SLASH + '5_SEEDBED_MASK' + SLASH + str(idx) + '_frame.jpg', seedbed_mask)
+    return coordinates
+
+
 def get_seedbed(image, seedbed_coordinates, idx):
     print("Getting_seedbed")
     # This function get an image with just the seedbed
@@ -511,16 +555,21 @@ def get_seedbed(image, seedbed_coordinates, idx):
     seedbed_mask = drawing_mask
 
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + '/5_SEEDBED/'):
-            os.makedirs(PATH_ROOT + '/5_SEEDBED/')
+        if not os.path.exists(PATH_ROOT + SLASH + '6_SEEDBED' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '6_SEEDBED' + SLASH)
 
             # if not created then raise error
     except OSError:
         print('Error: Creating directory of data')
-    cv2.imwrite(PATH_ROOT + '/5_SEEDBED//' + str(idx) + '_frame.jpg', seedbed_mask)
+    cv2.imwrite(PATH_ROOT + SLASH + '6_SEEDBED' + SLASH + str(idx) + '_frame.jpg', seedbed_mask)
     # print(seedbed_coordinates[0][1], seedbed_coordinates[2][1])
     return seedbed_mask
 
@@ -528,11 +577,16 @@ def get_seedbed(image, seedbed_coordinates, idx):
 def delete_repeated_frames(frames_list):
     print("Deleting repeated frames at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + '/2_DELETED_REPEATED_FRAME/'):
-            os.makedirs(PATH_ROOT + '/2_DELETED_REPEATED_FRAME/')
+        if not os.path.exists(PATH_ROOT + SLASH + '2_DELETED_REPEATED_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '2_DELETED_REPEATED_FRAME' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -548,7 +602,7 @@ def delete_repeated_frames(frames_list):
         img2_gray_double = np.array(img2_gray).astype(np.float)
         R = corr2(img1_gray_double, img2_gray_double)
         if R >= 0.9:
-            cv2.imwrite(PATH_ROOT + '/2_DELETED_REPEATED_FRAME/' + str(idx) + '_frame.jpg', frames_list[idx])
+            cv2.imwrite(PATH_ROOT + SLASH + '2_DELETED_REPEATED_FRAME' + SLASH + str(idx) + '_frame.jpg', frames_list[idx])
             removed = removed + 1
         elif R < 0.9:
             final_frames_list.append(frames_list[idx])
@@ -577,12 +631,16 @@ def split_video_frames(VIDEO_PATH):
     # Read the video from specified path
     print(VIDEO_PATH)
     cap = cv2.VideoCapture(VIDEO_PATH)
-
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + '/1_VIDEO_SPLIT/'):
-            os.makedirs(PATH_ROOT + '/1_VIDEO_SPLIT/')
+        if not os.path.exists(PATH_ROOT + SLASH + '1_VIDEO_SPLIT' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '1_VIDEO_SPLIT' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -604,7 +662,7 @@ def split_video_frames(VIDEO_PATH):
 
         if ret:
             # if video is still left continue creating images
-            name = PATH_ROOT + '/1_VIDEO_SPLIT/' + str(current_frame_name) + '_frame.jpg'
+            name = PATH_ROOT + SLASH + '1_VIDEO_SPLIT' + SLASH + str(current_frame_name) + '_frame.jpg'
             print('Creating...' + name)
 
             # Rotating 180º the frame
@@ -663,11 +721,16 @@ def establish_reference_size_for_scaling(image_obj_list):
 def scale(image_obj_list, reference_height_factor):
     print("Scaling image objects list by factor")
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + '/6_SCALED_FRAME/'):
-            os.makedirs(PATH_ROOT + '/6_SCALED_FRAME/')
+        if not os.path.exists(PATH_ROOT + SLASH + '7_SCALED_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '7_SCALED_FRAME' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -684,7 +747,7 @@ def scale(image_obj_list, reference_height_factor):
         # scaled_mask_obj = imgObj.ImageObj(scaled_mask)
         img_dim = int(((each_tuple[0].get_image()).shape[1]) * rescale_factor), int(((each_tuple[0].get_image()).shape[0]) * rescale_factor)
         scaled_img = cv2.resize(each_tuple[0].get_image(), img_dim, interpolation=cv2.INTER_AREA)
-        cv2.imwrite(PATH_ROOT + '/6_SCALED_FRAME/' + str(idx) + '_frame.jpg', scaled_img)
+        cv2.imwrite(PATH_ROOT + SLASH + '7_SCALED_FRAME' + SLASH + str(idx) + '_frame.jpg', scaled_img)
         scaled_img_obj = imgObj.ImageObj(scaled_img, 0, 0)
         scaled_img_obj_list.append(scaled_img_obj)
         idx += 1
@@ -707,8 +770,23 @@ def set_standard_size_frame(img_obj_triplet, standard_size):
     return img_obj_triplet_output
 
 
-def center_seedbed(image_obj, standard_size):
+def center_seedbed(image_obj, standard_size, idx):
     print("Centering image object")
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
+    try:
+
+        # creating a folder named data
+        if not os.path.exists(PATH_ROOT + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH)
+
+            # if not created then raise error
+    except OSError:
+        print('Error: Creating directory of data')
     complete_image = image_obj.get_image()
     plants_mask = create_mask_filled_by_plants(complete_image)
     seedbed_coordinates = get_seedbed_contour_rect_coordinates(plants_mask)
@@ -717,6 +795,7 @@ def center_seedbed(image_obj, standard_size):
     seedbed_height_middle_point = seedbed_coordinates[0][1] + int(np.ceil((seedbed_coordinates[2][1] - seedbed_coordinates[0][1])/2))
     initial_row = standard_frame_height_middle_point - seedbed_height_middle_point
     standard_frame[initial_row:, :, :] = complete_image[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :]
+    cv2.imwrite(PATH_ROOT + SLASH + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH + str(idx) + '_frame.jpg', standard_frame)
     centred_frame_standard_img_obj = imgObj.ImageObj(standard_frame, 0, 0)
     return centred_frame_standard_img_obj
 
@@ -782,23 +861,24 @@ def homogenize_image_set(path):
     init_frame_found = False
     idx_frame = 1000
     for each_frame in frames_list:
-        print("Started correct_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
-        print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        print("Started create_mask_filled_by_plants() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        plants_mask = create_mask_filled_by_plants(angle_corrected_img_obj.get_image())
-        print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        print("Started get_seedbed_contour_rect_coordinates() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        seedbed_coordinates = get_seedbed_contour_rect_coordinates(plants_mask)
-        print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        print("Started get_seedbed_mask() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        only_seedbed = get_seedbed(angle_corrected_img_obj.get_image().copy(), seedbed_coordinates, idx_frame)
-        print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        only_seedbed_img_obj = imgObj.ImageObj(only_seedbed, 0, 0)
-        if init_frame_found or not is_trash_frame(only_seedbed_img_obj):
-            init_frame_found = True
-            images_list.append((angle_corrected_img_obj, seedbed_coordinates))
-        idx_frame += 1
+        if idx_frame <= 1378:
+            print("Started correct_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
+            print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print("Started create_mask_filled_by_plants() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            plants_mask = create_mask_filled_by_plants(angle_corrected_img_obj.get_image())
+            print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print("Started get_seedbed_contour_rect_coordinates() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            seedbed_coordinates = get_seedbed_contour_rect_coordinates(plants_mask)
+            print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print("Started get_seedbed_mask() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            only_seedbed = get_seedbed(angle_corrected_img_obj.get_image().copy(), seedbed_coordinates, idx_frame)
+            print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            only_seedbed_img_obj = imgObj.ImageObj(only_seedbed, 0, 0)
+            if init_frame_found or not is_trash_frame(only_seedbed_img_obj):
+                init_frame_found = True
+                images_list.append((angle_corrected_img_obj, seedbed_coordinates))
+            idx_frame += 1
     print("Started establish_reference_size_for_scaling() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     scaling_factor = establish_reference_size_for_scaling(images_list)
     print("Scaling factor: ", scaling_factor)
@@ -809,7 +889,7 @@ def homogenize_image_set(path):
     for each_img_obj in scaled_images_list:
         # standarized_frame_size_triplet = set_standard_size_frame(each_triplet, standard_size)
         print("Started center_seedbed() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        centered_img_obj = center_seedbed(each_img_obj, standard_size)
+        centered_img_obj = center_seedbed(each_img_obj, standard_size, idx_frame)
         print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         print("Started trim_by_right() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         trimmed_img_obj = trim_by_right(centered_img_obj)
@@ -835,7 +915,12 @@ if __name__ == '__main__':
         ax1.set_xlabel("Image with standard size color", fontsize=14)
         plt.show()
     """
-    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + '/VID_cucharita.mp4'
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS == 'linux':
+        SLASH = "/"
+    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'VID_cucharita.mp4'
     print("Started")
     homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
