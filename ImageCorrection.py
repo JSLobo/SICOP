@@ -20,7 +20,7 @@ def correct_angle(img_obj, idx):
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
     try:
 
@@ -514,7 +514,7 @@ def get_seedbed_coordinates(image, idx=None):
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
     try:
 
@@ -602,7 +602,7 @@ def get_seedbed_coordinates(image, idx=None):
                 seedbed_mask)"""
 
     # ----
-    source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
+    seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
                                                                          cv2.CHAIN_APPROX_SIMPLE)
     # Getting main seedbed polygon
     # Approximate contours to polygons + get bounding rects
@@ -641,7 +641,7 @@ def get_seedbed(image, seedbed_coordinates, idx=None):
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
     try:
 
@@ -664,7 +664,7 @@ def delete_repeated_frames(frames_list):
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
     try:
 
@@ -718,7 +718,7 @@ def split_video_frames(VIDEO_PATH):
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
     try:
 
@@ -808,7 +808,7 @@ def scale(image_obj_list, reference_height_factor):
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
     try:
 
@@ -854,13 +854,13 @@ def set_standard_size_frame(img_obj_triplet, standard_size):
     return img_obj_triplet_output
 
 
-def center_seedbed(image_obj, standard_size, idx):
+def center_seedbed(image_obj, standard_size, idx=None):
     print("Centering image object")
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
     try:
 
@@ -873,12 +873,21 @@ def center_seedbed(image_obj, standard_size, idx):
         print('Error: Creating directory of data')
     complete_image = image_obj.get_image()
     plants_mask = create_mask_filled_by_plants(complete_image)
+    print("Plants mask: ", plants_mask.shape)
+    width = plants_mask.shape[1]
     seedbed_coordinates = get_seedbed_coordinates(plants_mask)
     standard_frame = np.zeros((standard_size[0], standard_size[1], 3), dtype=np.uint8)
+    print("Standard frame: ", standard_frame.shape)
     standard_frame_height_middle_point = int(np.ceil(standard_size[0]/2))
+    print("Standard frame height middle point: ", standard_frame_height_middle_point)
     seedbed_height_middle_point = seedbed_coordinates[0][1] + int(np.ceil((seedbed_coordinates[2][1] - seedbed_coordinates[0][1])/2))
+    print("Seedbed height middle point: ", seedbed_height_middle_point)
     initial_row = standard_frame_height_middle_point - seedbed_height_middle_point
-    standard_frame[initial_row:, :, :] = complete_image[seedbed_coordinates[0][1]:seedbed_coordinates[2][1], :, :]
+    print("Initial row: ", initial_row)
+    # bottom_row = seedbed_coordinates[2][1] - seedbed_coordinates[0][1]
+    bottom_row = plants_mask.shape[0]
+    print("Bottom row: ", bottom_row)
+    standard_frame[initial_row:initial_row + bottom_row, :width, :] = complete_image[:, :, :]
     cv2.imwrite(PATH_ROOT + SLASH + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH + str(idx) + '_frame.jpg', standard_frame)
     centred_frame_standard_img_obj = imgObj.ImageObj(standard_frame, 0, 0)
     return centred_frame_standard_img_obj
@@ -1000,15 +1009,17 @@ if __name__ == '__main__':
         plt.show()
     """
     OS = platform.system()
+    print(OS)
     if OS.lower() == 'windows':
         SLASH = "\\"
-    elif OS == 'linux':
+    elif OS.lower() == 'linux':
         SLASH = "/"
 
     VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'VID_cucharita.mp4'
     print("Started")
     homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
+
     """idx_frame = 1120
     IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "4_ANGLE_CORRECTED_FRAME" + SLASH + str(idx_frame) + "_frame.jpg"
     image = imageio.imread((IMAGE_PATH))
@@ -1025,3 +1036,16 @@ if __name__ == '__main__':
                 """
 
 
+    """print("Started")
+    idx_frame = 1120
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    IMAGE_PATH = PATH_ROOT + SLASH + "4_ANGLE_CORRECTED_FRAME" + SLASH + str(
+        idx_frame) + "_frame.jpg"
+    image = imageio.imread((IMAGE_PATH))
+    standard_size = int(np.ceil(image.shape[0] * (1.25))), int(np.ceil(image.shape[1] * (1.25)))
+    print("Standard size: ", standard_size)
+    img_obj = imgObj.ImageObj(image, 0, 0)
+    centered_img_obj = center_seedbed(img_obj, standard_size, idx_frame)
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'centered_frame.jpg',
+                centered_img_obj.get_image())
+    """
