@@ -170,7 +170,7 @@ def correct_angle(img_obj, idx=None):
 
     sizes_labels = ndimage.sum(vertical_final, label_im, range(nb_labels + 1))
 
-    mask_size = sizes_labels < (cols * rows) * 0.01
+    mask_size = sizes_labels < (cols * rows) * 0.005  # previous value = '0.01'
     remove_pixel = mask_size[label_im]
 
     vertical_final[remove_pixel] = 0
@@ -1135,12 +1135,12 @@ if __name__ == '__main__':
     elif OS.lower() == 'linux':
         SLASH = "/"
 
-    """VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'VID_cucharita.mp4'
+    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320.mp4'
     print("Started")
     homogenize_image_set(VIDEO_PATH)
-    print("Finished with success =D")"""
+    print("Finished with success =D")
 
-    idx_frame = 1115
+    """idx_frame = 1115
     IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "4_ANGLE_CORRECTED_FRAME" + SLASH + str(idx_frame) + "_frame.png"
     image = imageio.imread((IMAGE_PATH))
     just_plants = create_mask_filled_by_plants(image)
@@ -1152,7 +1152,7 @@ if __name__ == '__main__':
     coordinates = get_seedbed_coordinates(just_plants)
     just_seedbed = get_seedbed(image, coordinates)
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '10_just_seedbed_frame.jpg',
-                just_seedbed)
+                just_seedbed)"""
 
 
 

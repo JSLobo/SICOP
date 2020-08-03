@@ -147,6 +147,14 @@ cython_debug/
 7_SCALED_FRAME/
 8_CENTERED_STANDARD_FRAME/
 9_TRIMMED_FRAME/
-VID_cucharita.mp4
 TEST/
 drive-download-20200725T044846Z-001/
+RESULTADOS/
+
+# Videos
+VID_cucharita.mp4
+Huawei_P_10_Lite_VID_20200117.mp4
+P_Smart_VID_20200320.mp4
+
+# Notes
+NOTES.txt
