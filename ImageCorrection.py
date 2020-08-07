@@ -12,6 +12,7 @@ import platform
 from os import listdir
 from os.path import isfile, join
 import imageio
+from plantcv import plantcv as pcv
 
 
 def correct_angle(img_obj, idx=None):
@@ -307,6 +308,36 @@ def get_largest_line_setup(thresholded_image):
     return voting_options[voting_election[1]]
 
 
+def create_plants_mask(BGR_image):
+    print("Creating plants mask")
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS.lower() == 'linux':
+        SLASH = "/"
+    # l_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'l')
+    a_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'a')
+    # b_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'b')
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_RGB2LAB_frame.jpg', l_channel)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_a_channel_RGB2LAB_frame.jpg', a_channel)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'b_channel_RGB2LAB_frame.jpg', b_channel)
+    # l_thresh = pcv.threshold.binary(gray_img=l_channel, threshold=150, max_value=255, object_type='light')
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_tresh_frame.jpg', l_thresh)
+    # img_binary = pcv.threshold.binary(gray_img=a_channel, threshold=0, max_value=255, object_type='dark')
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_binary)
+    threshold_value, img_thresh = cv2.threshold(a_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_thresh)
+    img_thresh_bitwised = cv2.bitwise_not(img_thresh)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '3_a_channel_tresh_bitwised_frame.jpg', img_thresh_bitwised)
+    result = img_thresh_bitwised
+    # dim = np.expand_dims(img_thresh_bitwised, axis=2)
+    # new_mask = np.concatenate((dim, dim, dim), axis=2)
+    # result = BGR_image * new_mask
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'a_channel_color_space_frame.jpg', result)
+    return result
+
+
 def create_mask_filled_by_plants(BGR_image):
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     OS = platform.system()
@@ -532,7 +563,7 @@ def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas alternative soluti
     return seedbed_mask
 
 
-def get_seedbed_coordinates(image, idx=None):
+def get_seedbed_coordinates(binary_img, idx=None):
     print("Getting_seedbed_mask")
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     OS = platform.system()
@@ -549,28 +580,29 @@ def get_seedbed_coordinates(image, idx=None):
             # if not created then raise error
     except OSError:
         print('Error: Creating directory of data')
-    rows, cols = image.shape[0], image.shape[1]
+    rows, cols = binary_img.shape[0], binary_img.shape[1]
     limit_area = (rows*cols)*0.05
-    SE = cv2.getStructuringElement(cv2.MORPH_RECT, (1000, 1))  # horizontal line
-    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 40))  # vertical line
+    SE = cv2.getStructuringElement(cv2.MORPH_RECT, (int(np.ceil(cols*0.95)), 1))  # horizontal line
+    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows*0.02))))  # vertical line
     SE2 = cv2.getStructuringElement(cv2.MORPH_RECT, (cols*2, 1))  # horizontal line
     SE3 = cv2.getStructuringElement(cv2.MORPH_CROSS, (11,11))  # diamond
 
     """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '0_image_frame.jpg',
-                image)"""
+                image)
     img_gray = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2GRAY)
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_gray_frame.jpg',
-                img_gray)"""
-    threshold_value, img_thres = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-    dilated_img_thres = cv2.dilate(img_thres, SE)
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_gray_frame.jpg',
+                img_gray)
+    threshold_value, img_thres = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)"""
+    img_thresh = binary_img.copy()
+    dilated_img_thres = cv2.dilate(img_thresh, SE)
     closing_img_thres = cv2.morphologyEx(dilated_img_thres, cv2.MORPH_CLOSE, SE3)
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_close_frame.jpg',
+    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '4_close_frame.jpg',
                 closing_img_thres)"""
     # removes small objects by connected components analysis
     # nlabel, labels = cv2.connectedComponents(closing_img_thres, connectivity=8)
-    structure = s = [[1,1,1], #  structure for a connectivity analysis of 8 components
-                     [1,1,1],
-                     [1,1,1]]
+    structure = [[1,1,1],  # structure for a connectivity analysis of 8 components
+                 [1,1,1],
+                 [1,1,1]]
     label_im, nb_labels = ndimage.label(closing_img_thres, structure)
 
     sizes_labels = ndimage.sum(closing_img_thres, label_im, range(nb_labels + 1))
@@ -579,11 +611,11 @@ def get_seedbed_coordinates(image, idx=None):
     mask_size = sizes_labels < limit_area
     remove_pixel = mask_size[label_im]
     closing_img_thres[remove_pixel] = 0
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '3_small_objects_removed_frame.jpg',
+    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '5_small_objects_removed_frame.jpg',
                 closing_img_thres)"""
     # -----
     closing_img_thres = cv2.morphologyEx(closing_img_thres, cv2.MORPH_CLOSE, SE1)
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '4_closing_frame.jpg',
+    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '6_closing_frame.jpg',
                 closing_img_thres)"""
     """filled_image = ndimage.binary_fill_holes(closing_img_thres.copy(), structure=np.ones((20,20)))
     print(filled_image.astype(int))
@@ -605,7 +637,7 @@ def get_seedbed_coordinates(image, idx=None):
     # Combine the to image to get the foreground
     im_out = closing_img_thres | im_floodfill_inv
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '7_foreground_frame.jpg',
-                im_out)"""
+                im_out)"""""
     """# im_out = im_out * 255
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '5_fill_holes_frame.jpg',
                 im_out)"""
@@ -627,10 +659,10 @@ def get_seedbed_coordinates(image, idx=None):
     remove_pixel = mask_size[label_im]
     closing_img_thres[remove_pixel] = 0
     seedbed_mask = closing_img_thres
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '8_greater_object_frame.jpg',
+    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '7_greater_object_frame.jpg',
                 seedbed_mask)"""
     seedbed_mask = cv2.dilate(seedbed_mask, SE2)
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '9_greater_object_dilated_frame.jpg',
+    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '8_greater_object_dilated_frame.jpg',
                 seedbed_mask)"""
 
     # ----
@@ -638,7 +670,7 @@ def get_seedbed_coordinates(image, idx=None):
         source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
                                                                cv2.CHAIN_APPROX_SIMPLE)
     elif OS.lower() == 'linux':
-        seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
+        source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
                                                                cv2.CHAIN_APPROX_SIMPLE)
 
     # Getting main seedbed polygon
@@ -808,7 +840,7 @@ def split_video_frames(VIDEO_PATH):
             # show how many frames are created
             currentframe += 1
             current_frame_name += 1
-            cap.set(cv2.CAP_PROP_POS_FRAMES, currentframe * 15)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, currentframe * 5)  # before each 15 frames
         else:
             break
 
@@ -909,7 +941,7 @@ def center_seedbed(image_obj, standard_size, idx=None):
     except OSError:
         print('Error: Creating directory of data')
     complete_image = image_obj.get_image()
-    plants_mask = create_mask_filled_by_plants(complete_image)
+    plants_mask = create_plants_mask(complete_image)
     print("Plants mask: ", plants_mask.shape)
     width = plants_mask.shape[1]
     seedbed_coordinates = get_seedbed_coordinates(plants_mask)
@@ -1074,8 +1106,8 @@ def homogenize_image_set(path):
             print("Started correct_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
             print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            print("Started create_mask_filled_by_plants() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            plant_mask = create_mask_filled_by_plants(angle_corrected_img_obj.get_image())
+            print("Started create_mask_plants() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            plant_mask = create_plants_mask(angle_corrected_img_obj.get_image())
             print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             print("Started get_seedbed_contour_rect_coordinates() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             seedbed_coordinates = get_seedbed_coordinates(plant_mask, idx_frame)
@@ -1140,10 +1172,12 @@ if __name__ == '__main__':
     homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
 
-    """idx_frame = 1115
-    IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "4_ANGLE_CORRECTED_FRAME" + SLASH + str(idx_frame) + "_frame.png"
+    """idx_frame = 1374
+    IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "images" + SLASH + 'check' + SLASH + 'original' + SLASH + str(idx_frame) + "_frame.png"
     image = imageio.imread((IMAGE_PATH))
-    just_plants = create_mask_filled_by_plants(image)
+    print("Rows: " + str(image.shape[0]) + ", cols: " + str(image.shape[1]))
+    # just_plants = create_mask_filled_by_plants(image)
+    just_plants = create_plants_mask(image)
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '0_just_plants_frame.jpg',
                 just_plants)
@@ -1152,7 +1186,9 @@ if __name__ == '__main__':
     coordinates = get_seedbed_coordinates(just_plants)
     just_seedbed = get_seedbed(image, coordinates)
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '10_just_seedbed_frame.jpg',
-                just_seedbed)"""
+                just_seedbed)
+    # create_plants_mask(image)
+    """
 
 
 

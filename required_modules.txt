@@ -1,5 +1,5 @@
 - Install cv2 - 4.2.0: conda install -c conda-forge opencv
 - Install matplotlib: pip install matplotlib
-- Install scipy: pip install scipy
-- Install scikit-image: pip install scikit-image
--
+- Install scipy (1.4.1): pip install scipy
+- Install scikit-image (scikit-image==0.17.2): pip install scikit-image
+- Install plantcv (plantcv==3.9.0): pip install plantcv
