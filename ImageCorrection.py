@@ -784,6 +784,8 @@ def split_video_frames(VIDEO_PATH):
     # Read the video from specified path
     print(VIDEO_PATH)
     cap = cv2.VideoCapture(VIDEO_PATH)
+    print("Number of frame in the video file: ", int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
+    print("Frame rate: ", cap.get(cv2.CAP_PROP_FPS))
     OS = platform.system()
     if OS.lower() == 'windows':
         SLASH = "\\"
@@ -807,8 +809,11 @@ def split_video_frames(VIDEO_PATH):
     # frame
     current_frame_name = 1000
     currentframe = 0
+    frames_frequency = 10  # each 10th frames
+    frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)/frames_frequency)
+    frame_indexes = frames_frequency * np.arange(frames)
 
-    while (True):
+    for index in frame_indexes:
 
         # reading from frame
         ret, frame = cap.read()
@@ -838,9 +843,9 @@ def split_video_frames(VIDEO_PATH):
 
             # increasing counter so that it will
             # show how many frames are created
-            currentframe += 1
+            currentframe += 10
             current_frame_name += 1
-            cap.set(cv2.CAP_PROP_POS_FRAMES, currentframe * 5)  # before each 15 frames
+            cap.set(cv2.CAP_PROP_POS_FRAMES, index)  # before each 15 frames currentframe * 15
         else:
             break
 
@@ -1098,11 +1103,11 @@ def homogenize_image_set(path):
     frames_list.append(image)"""
     # -------
     images_list = []
-    standard_size = int(np.ceil(frames_list[0].shape[0] * (1.3))), int(np.ceil(frames_list[0].shape[1] * (1.15)))
+    standard_size = int(np.ceil(frames_list[0].shape[0] * 1.25)), int(np.ceil(frames_list[0].shape[1] * 1.25))
     init_frame_found = False
     idx_frame = 1000
     for each_frame in frames_list:
-        if idx_frame <= 1378:  # <= 1378
+        if 1016 <= idx_frame <= 1392:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1052 <= idx_frame <= 1367 P_10_Lite
             print("Started correct_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
             print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -1119,8 +1124,8 @@ def homogenize_image_set(path):
             if init_frame_found or not is_trash_frame(only_seedbed_img_obj):
                 init_frame_found = True
                 images_list.append((angle_corrected_img_obj, seedbed_coordinates))
-            idx_frame += 1
-        # idx_frame += 1
+            # idx_frame += 1
+        idx_frame += 1
     print("Started establish_reference_size_for_scaling() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     scaling_factor = establish_reference_size_for_scaling(images_list)
     print("Scaling factor: ", scaling_factor)
@@ -1160,6 +1165,7 @@ if __name__ == '__main__':
         ax1.set_xlabel("Image with standard size color", fontsize=14)
         plt.show()
     """
+    init_time = datetime.now()
     OS = platform.system()
     print(OS)
     if OS.lower() == 'windows':
@@ -1167,11 +1173,14 @@ if __name__ == '__main__':
     elif OS.lower() == 'linux':
         SLASH = "/"
 
-    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320.mp4'
+    # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320.mp4'
+    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_2.mp4'
+    # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'Huawei_P_10_Lite_VID_20200117.mp4'
     print("Started")
     homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
-
+    print("Started at ", init_time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("Finished at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     """idx_frame = 1374
     IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "images" + SLASH + 'check' + SLASH + 'original' + SLASH + str(idx_frame) + "_frame.png"
     image = imageio.imread((IMAGE_PATH))
