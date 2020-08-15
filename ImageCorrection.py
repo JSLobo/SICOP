@@ -198,7 +198,8 @@ def correct_angle(img_obj, idx=None):
     # print("Rotation on original image data type :", rotation_on_original_image.dtype)
     # cropped_img, blackAndWhiteImage, rotation_on_original_image
     if not idx is None:
-        cv2.imwrite(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH + str(idx) + '_frame.png', rotation_on_original_image)
+        cv2.imwrite(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH + str(idx) + '_frame.png',
+                    rotation_on_original_image)
     # image = imageio.imread(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH + str(idx) + '_frame.jpg')
     # print("Rotation on compressed image data type :", image.dtype)
     img_obj = imgObj.ImageObj(rotation_on_original_image, 0, 0)
@@ -216,7 +217,7 @@ def get_largest_line_setup(thresholded_image):
         rotated = rotate_image(blackAndWhiteImage, angle)
         rows_init, rows_limit, cols = 0, int(np.ceil(rotated.shape[0] / 3)), rotated.shape[1]
         last_col = cols - 1
-        #print(rotated.shape)
+        # print(rotated.shape)
         for index_row in range(rows_init, rows_limit, 1):
             vector_line = rotated[index_row:index_row + 1, 0:cols]
             # print(vector_line.shape)
@@ -253,7 +254,7 @@ def get_largest_line_setup(thresholded_image):
         rotated = rotate_image(blackAndWhiteImage, angle)
         rows_init, rows_limit, cols = int(np.ceil(((rotated.shape[0] / 3) * 2) + 1)), rotated.shape[0], rotated.shape[1]
         last_col = cols - 1
-        #print(rotated.shape)
+        # print(rotated.shape)
         for index_row in range(rows_init, rows_limit, 1):
             vector_line = rotated[index_row:index_row + 1, 0:cols]
             # print(vector_line.shape)
@@ -349,7 +350,7 @@ def create_mask_filled_by_plants(BGR_image):
     """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '0_1_mask_by_plants_init_frame.jpg',
                 BGR_image)"""
     # RG_image = BGR_image.copy()
-    RGB_image = cv2.cvtColor(BGR_image, cv2.COLOR_BGR2RGB) # this is performed for get mixed color values
+    RGB_image = cv2.cvtColor(BGR_image, cv2.COLOR_BGR2RGB)  # this is performed for get mixed color values
     # RG_image[:,:,0] = np.zeros([RG_image.shape[0], RG_image.shape[1]])
     """RGB_image_inv = cv2.bitwise_not(RGB_image.copy())"""
     """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '0_2_mask_by_plants_not_blue_channel_frame.jpg',
@@ -491,7 +492,8 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
         im_dilated = cv2.dilate(thresh, circular_structure)
 
     #   5 - Isolate main seedbed
-    source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(im_dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(im_dilated, cv2.RETR_TREE,
+                                                                         cv2.CHAIN_APPROX_SIMPLE)
     # print(type(seedbed_contours))
     # seedbed_contours = max(seedbed_contours, key=cv2.contourArea)
     # print(type(seedbed_contours))
@@ -581,11 +583,11 @@ def get_seedbed_coordinates(binary_img, idx=None):
     except OSError:
         print('Error: Creating directory of data')
     rows, cols = binary_img.shape[0], binary_img.shape[1]
-    limit_area = (rows*cols)*0.05
-    SE = cv2.getStructuringElement(cv2.MORPH_RECT, (int(np.ceil(cols*0.95)), 1))  # horizontal line
-    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows*0.02))))  # vertical line
-    SE2 = cv2.getStructuringElement(cv2.MORPH_RECT, (cols*2, 1))  # horizontal line
-    SE3 = cv2.getStructuringElement(cv2.MORPH_CROSS, (11,11))  # diamond
+    limit_area = (rows * cols) * 0.05
+    SE = cv2.getStructuringElement(cv2.MORPH_RECT, (int(np.ceil(cols * 0.95)), 1))  # horizontal line
+    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.02))))  # vertical line
+    SE2 = cv2.getStructuringElement(cv2.MORPH_RECT, (cols * 2, 1))  # horizontal line
+    SE3 = cv2.getStructuringElement(cv2.MORPH_CROSS, (11, 11))  # diamond
 
     """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '0_image_frame.jpg',
                 image)
@@ -600,9 +602,9 @@ def get_seedbed_coordinates(binary_img, idx=None):
                 closing_img_thres)"""
     # removes small objects by connected components analysis
     # nlabel, labels = cv2.connectedComponents(closing_img_thres, connectivity=8)
-    structure = [[1,1,1],  # structure for a connectivity analysis of 8 components
-                 [1,1,1],
-                 [1,1,1]]
+    structure = [[1, 1, 1],  # structure for a connectivity analysis of 8 components
+                 [1, 1, 1],
+                 [1, 1, 1]]
     label_im, nb_labels = ndimage.label(closing_img_thres, structure)
 
     sizes_labels = ndimage.sum(closing_img_thres, label_im, range(nb_labels + 1))
@@ -668,10 +670,10 @@ def get_seedbed_coordinates(binary_img, idx=None):
     # ----
     if OS.lower() == 'windows':
         source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
-                                                               cv2.CHAIN_APPROX_SIMPLE)
+                                                                             cv2.CHAIN_APPROX_SIMPLE)
     elif OS.lower() == 'linux':
         source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
-                                                               cv2.CHAIN_APPROX_SIMPLE)
+                                                                             cv2.CHAIN_APPROX_SIMPLE)
 
     # Getting main seedbed polygon
     # Approximate contours to polygons + get bounding rects
@@ -754,10 +756,11 @@ def delete_repeated_frames(frames_list):
         img1_gray_double = np.array(img1_gray).astype(np.float)
         img2_gray_double = np.array(img2_gray).astype(np.float)
         R = corr2(img1_gray_double, img2_gray_double)
-        if R >= 0.9:
-            cv2.imwrite(PATH_ROOT + SLASH + '2_DELETED_REPEATED_FRAME' + SLASH + str(idx) + '_frame.jpg', frames_list[idx])
+        if R >= 0.875:
+            cv2.imwrite(PATH_ROOT + SLASH + '2_DELETED_REPEATED_FRAME' + SLASH + str(idx) + '_frame.jpg',
+                        frames_list[idx])
             removed = removed + 1
-        elif R < 0.9:
+        elif R < 0.875:
             final_frames_list.append(frames_list[idx])
     print("Removed " + str(removed) + " frames.")
     print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -773,7 +776,7 @@ def corr2(a, b):
     a = a - mean2(a)
     b = b - mean2(b)
 
-    r = (a*b).sum() / math.sqrt((a*a).sum() * (b*b).sum());
+    r = (a * b).sum() / math.sqrt((a * a).sum() * (b * b).sum());
     return r
 
 
@@ -807,11 +810,18 @@ def split_video_frames(VIDEO_PATH):
     # frame_no = (frame_seq /(time_length*fps))
     # print("Time length: ", time_length)
     # frame
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = int(np.floor(fps))
+    if fps == 30:
+        frames_frequency = 2  # before each 5th frames, now 10% of fps
+    elif fps == 60:
+        frames_frequency = 4  # before each 10th frames, now 10% of fps
+
+    frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) / frames_frequency)
+    frame_indexes = frames_frequency * np.arange(frames)
+
     current_frame_name = 1000
     currentframe = 0
-    frames_frequency = 10  # each 10th frames
-    frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)/frames_frequency)
-    frame_indexes = frames_frequency * np.arange(frames)
 
     for index in frame_indexes:
 
@@ -903,7 +913,8 @@ def scale(image_obj_list, reference_height_factor):
         # mask_dim = int((each_triplet[1].shape[1]) * rescale_factor), int((each_triplet[1].shape[0]) * rescale_factor)
         # scaled_mask = cv2.resize(each_triplet[1], mask_dim, interpolation=cv2.INTER_AREA)
         # scaled_mask_obj = imgObj.ImageObj(scaled_mask)
-        img_dim = int(((each_tuple[0].get_image()).shape[1]) * rescale_factor), int(((each_tuple[0].get_image()).shape[0]) * rescale_factor)
+        img_dim = int(((each_tuple[0].get_image()).shape[1]) * rescale_factor), int(
+            ((each_tuple[0].get_image()).shape[0]) * rescale_factor)
         scaled_img = cv2.resize(each_tuple[0].get_image(), img_dim, interpolation=cv2.INTER_AREA)
         cv2.imwrite(PATH_ROOT + SLASH + '7_SCALED_FRAME' + SLASH + str(idx) + '_frame.jpg', scaled_img)
         scaled_img_obj = imgObj.ImageObj(scaled_img, 0, 0)
@@ -924,7 +935,8 @@ def set_standard_size_frame(img_obj_triplet, standard_size):
     # img_obj '1' --> mask image
     img_2 = img_obj_triplet[1].get_image()
     standard_frame_2[0:img_2.shape[0] - 1, 0:img_2.shape[1] - 1] = img_2[:, :]
-    img_obj_triplet_output = imgObj.ImageObj(standard_frame_1, 0, 0), imgObj.ImageObj(standard_frame_2, 0, 0), img_obj_triplet[2]
+    img_obj_triplet_output = imgObj.ImageObj(standard_frame_1, 0, 0), imgObj.ImageObj(standard_frame_2, 0, 0), \
+                             img_obj_triplet[2]
     return img_obj_triplet_output
 
 
@@ -952,9 +964,10 @@ def center_seedbed(image_obj, standard_size, idx=None):
     seedbed_coordinates = get_seedbed_coordinates(plants_mask)
     standard_frame = np.zeros((standard_size[0], standard_size[1], 3), dtype=np.uint8)
     print("Standard frame: ", standard_frame.shape)
-    standard_frame_height_middle_point = int(np.ceil(standard_size[0]/2))
+    standard_frame_height_middle_point = int(np.ceil(standard_size[0] / 2))
     print("Standard frame height middle point: ", standard_frame_height_middle_point)
-    seedbed_height_middle_point = seedbed_coordinates[0][1] + int(np.ceil((seedbed_coordinates[2][1] - seedbed_coordinates[0][1])/2))
+    seedbed_height_middle_point = seedbed_coordinates[0][1] + int(
+        np.ceil((seedbed_coordinates[2][1] - seedbed_coordinates[0][1]) / 2))
     print("Seedbed height middle point: ", seedbed_height_middle_point)
     initial_row = standard_frame_height_middle_point - seedbed_height_middle_point
     print("Initial row: ", initial_row)
@@ -962,7 +975,8 @@ def center_seedbed(image_obj, standard_size, idx=None):
     bottom_row = plants_mask.shape[0]
     print("Bottom row: ", bottom_row)
     standard_frame[initial_row:initial_row + bottom_row, :width, :] = complete_image[:, :, :]
-    cv2.imwrite(PATH_ROOT + SLASH + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH + str(idx) + '_frame.jpg', standard_frame)
+    cv2.imwrite(PATH_ROOT + SLASH + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH + str(idx) + '_frame.jpg',
+                standard_frame)
     centred_frame_standard_img_obj = imgObj.ImageObj(standard_frame, 0, 0)
     return centred_frame_standard_img_obj
 
@@ -1080,6 +1094,39 @@ def trim_by_right_op(image_obj):
     return image_obj
 
 
+def trim_by_center(trimmed_by_right_images_list):
+    print("Trimming images list by center, 1/9 of image width")
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS.lower() == 'linux':
+        SLASH = "/"
+    try:
+        # creating a folder named data
+        if not os.path.exists(PATH_ROOT + SLASH + '10_TRIMMED_FRAME_TO_STITCH' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '10_TRIMMED_FRAME_TO_STITCH' + SLASH)
+
+            # if not created then raise error
+    except OSError:
+        print('Error: Creating directory of data')
+
+    output_images_list = []
+    previous_width = trimmed_by_right_images_list[0].shape[1]
+    width_center = int(np.ceil(previous_width / 2))
+    new_width = int(np.ceil(previous_width * (1 / 9)))
+    init_col = width_center - int(np.ceil(new_width / 2))
+    end_col = width_center + int(np.ceil(new_width / 2))
+    idx_frame = 1000
+    for image in trimmed_by_right_images_list:
+        output_image = image[:, init_col:end_col, :]
+        output_images_list.append(output_image)
+        cv2.imwrite(PATH_ROOT + SLASH + SLASH + '10_TRIMMED_FRAME_TO_STITCH' + SLASH + str(idx_frame) + '.jpg',
+                    output_image)
+        idx_frame += 1
+    return output_images_list
+
+
 def homogenize_image_set(path):
     print("Homogenizing image set...")
     #  Splits video
@@ -1103,11 +1150,11 @@ def homogenize_image_set(path):
     frames_list.append(image)"""
     # -------
     images_list = []
-    standard_size = int(np.ceil(frames_list[0].shape[0] * 1.25)), int(np.ceil(frames_list[0].shape[1] * 1.25))
+    standard_size = int(np.ceil(frames_list[0].shape[0] * 1.3)), int(np.ceil(frames_list[0].shape[1] * 1.275))
     init_frame_found = False
     idx_frame = 1000
     for each_frame in frames_list:
-        if 1016 <= idx_frame <= 1392:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1052 <= idx_frame <= 1367 P_10_Lite
+        if 1037 <= idx_frame <= 1981:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1016 <= idx_frame <= 1392 P_Smart_2, 1052 <= idx_frame <= 1367 P_10_Lite
             print("Started correct_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
             print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -1143,7 +1190,10 @@ def homogenize_image_set(path):
         idx_frame += 1
 
     print("Started trim_by_right() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    final_images_list = trim_by_right(images_list)
+    trimmed_by_right_images_list = trim_by_right(images_list)
+    print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    print("Started trim_by_right() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    final_images_list = trim_by_center(trimmed_by_right_images_list)
     print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     return final_images_list
@@ -1173,7 +1223,7 @@ if __name__ == '__main__':
     elif OS.lower() == 'linux':
         SLASH = "/"
 
-    # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320.mp4'
+    # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_1.mp4'
     VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_2.mp4'
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'Huawei_P_10_Lite_VID_20200117.mp4'
     print("Started")
@@ -1198,8 +1248,6 @@ if __name__ == '__main__':
                 just_seedbed)
     # create_plants_mask(image)
     """
-
-
 
     """print("Started")
     idx_frame = 1120
@@ -1228,4 +1276,3 @@ if __name__ == '__main__':
         images_list.append(imgObj.ImageObj(image, 0, 0))
     images_list_output = trim_by_right(images_list)
     print("Images quantity: ", len(images_list_output))"""
-

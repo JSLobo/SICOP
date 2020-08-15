@@ -150,6 +150,7 @@ cython_debug/
 TEST/
 drive-download-20200725T044846Z-001/
 RESULTADOS/
+RESULTS/
 
 # Videos
 P_Smart_VID_20200320_1.mp4
@@ -158,3 +159,4 @@ Huawei_P_10_Lite_VID_20200117.mp4
 
 # Notes
 NOTES.txt
+performance_report.txt
