@@ -317,20 +317,20 @@ def create_plants_mask(BGR_image):
         SLASH = "\\"
     elif OS.lower() == 'linux':
         SLASH = "/"
-    # l_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'l')
+    l_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'l')
     a_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'a')
-    # b_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'b')
+    b_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'b')
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_RGB2LAB_frame.jpg', l_channel)
-    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_a_channel_RGB2LAB_frame.jpg', a_channel)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_1_a_channel_RGB2LAB_frame.jpg', a_channel)
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'b_channel_RGB2LAB_frame.jpg', b_channel)
     # l_thresh = pcv.threshold.binary(gray_img=l_channel, threshold=150, max_value=255, object_type='light')
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_tresh_frame.jpg', l_thresh)
     # img_binary = pcv.threshold.binary(gray_img=a_channel, threshold=0, max_value=255, object_type='dark')
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_binary)
     threshold_value, img_thresh = cv2.threshold(a_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_thresh)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_2_a_channel_tresh_frame.jpg', img_thresh)
     img_thresh_bitwised = cv2.bitwise_not(img_thresh)
-    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '3_a_channel_tresh_bitwised_frame.jpg', img_thresh_bitwised)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_3_a_channel_tresh_bitwised_frame.jpg', img_thresh_bitwised)
     result = img_thresh_bitwised
     # dim = np.expand_dims(img_thresh_bitwised, axis=2)
     # new_mask = np.concatenate((dim, dim, dim), axis=2)
@@ -565,6 +565,37 @@ def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas alternative soluti
     return seedbed_mask
 
 
+def check_small_object_to_remove(sizes_labels, min_limit_area, min_limit_area_for_big_object):
+    small_labels = sizes_labels/255 < min_limit_area
+    print("Small labels: ", small_labels)
+    print("Small labels type: ", type(small_labels))
+    big_labels = sizes_labels/255 > min_limit_area_for_big_object
+    labels_to_remove = np.zeros(len(sizes_labels)).astype(bool)
+    print("Lables to remove: ", labels_to_remove)
+    print("Labels to remove type: ", type(labels_to_remove))
+    counter = 0
+    before_label = False
+    after_label = False
+    for each_label_size in small_labels:
+        if each_label_size and not counter == 0:
+            for idx in range(counter, -1, -1):
+                if big_labels[idx]:
+                    before_label = True
+                    break
+            for idx in range(counter, len(sizes_labels), 1):
+                if big_labels[idx]:
+                    after_label = True
+                    break
+            if not (before_label and after_label):
+                labels_to_remove[counter] = True
+        else:
+            labels_to_remove[counter] = each_label_size
+        counter += 1
+        before_label = False
+        after_label = False
+    return labels_to_remove
+
+
 def get_seedbed_coordinates(binary_img, idx=None):
     print("Getting_seedbed_mask")
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -582,12 +613,17 @@ def get_seedbed_coordinates(binary_img, idx=None):
             # if not created then raise error
     except OSError:
         print('Error: Creating directory of data')
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_0_binary_frame.jpg',
+                binary_img)
     rows, cols = binary_img.shape[0], binary_img.shape[1]
-    limit_area = (rows * cols) * 0.05
+    min_limit_area = (rows * cols) * 0.05
+    min_limit_area_big_object = (rows * cols) * 0.2
+
     SE = cv2.getStructuringElement(cv2.MORPH_RECT, (int(np.ceil(cols * 0.95)), 1))  # horizontal line
-    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.02))))  # vertical line
+    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.05))))  # vertical line
     SE2 = cv2.getStructuringElement(cv2.MORPH_RECT, (cols * 2, 1))  # horizontal line
-    SE3 = cv2.getStructuringElement(cv2.MORPH_CROSS, (11, 11))  # diamond
+    print("S3 Diamond factor: ", int(rows*0.01))
+    SE3 = cv2.getStructuringElement(cv2.MORPH_CROSS, (int(rows*0.0075), int(rows*0.0075)))  # diamond
 
     """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '0_image_frame.jpg',
                 image)
@@ -598,8 +634,8 @@ def get_seedbed_coordinates(binary_img, idx=None):
     img_thresh = binary_img.copy()
     dilated_img_thres = cv2.dilate(img_thresh, SE)
     closing_img_thres = cv2.morphologyEx(dilated_img_thres, cv2.MORPH_CLOSE, SE3)
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '4_close_frame.jpg',
-                closing_img_thres)"""
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_1_close_frame.jpg',
+                closing_img_thres)
     # removes small objects by connected components analysis
     # nlabel, labels = cv2.connectedComponents(closing_img_thres, connectivity=8)
     structure = [[1, 1, 1],  # structure for a connectivity analysis of 8 components
@@ -609,16 +645,22 @@ def get_seedbed_coordinates(binary_img, idx=None):
 
     sizes_labels = ndimage.sum(closing_img_thres, label_im, range(nb_labels + 1))
     for each in sizes_labels:
-        print(str(each) + " vs to limit area: " + str(limit_area))
-    mask_size = sizes_labels < limit_area
-    remove_pixel = mask_size[label_im]
+        print(str(each/255) + " vs to limit area: " + str(min_limit_area))
+    # mask_size = sizes_labels/255 < min_limit_area
+    labels_to_remove = check_small_object_to_remove(sizes_labels, min_limit_area, min_limit_area_big_object)
+    # big_objects = sizes_labels/255 < min_limit_area_big_object
+
+    print("Size_labels type: ", type(sizes_labels))
+    print("Mask size: ", labels_to_remove)
+    print("Mask size type: ", type(labels_to_remove))
+    remove_pixel = labels_to_remove[label_im]
     closing_img_thres[remove_pixel] = 0
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '5_small_objects_removed_frame.jpg',
-                closing_img_thres)"""
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_2_small_objects_removed_frame.jpg',
+                closing_img_thres)
     # -----
     closing_img_thres = cv2.morphologyEx(closing_img_thres, cv2.MORPH_CLOSE, SE1)
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '6_closing_frame.jpg',
-                closing_img_thres)"""
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_3_closing_frame.jpg',
+                closing_img_thres)
     """filled_image = ndimage.binary_fill_holes(closing_img_thres.copy(), structure=np.ones((20,20)))
     print(filled_image.astype(int))
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '5_filled_frame.jpg',
@@ -653,7 +695,7 @@ def get_seedbed_coordinates(binary_img, idx=None):
     max_value = np.max(sizes_labels)
     print("Max value: ", max_value)
     for each in sizes_labels:
-        print(str(each) + " vs to limit area: " + str(limit_area))
+        print(str(each) + " vs to limit area: " + str(min_limit_area))
     # idx_value = np.where(sizes_labels == max_value)
     # seedbed_mask = im_out * 0
     # seedbed_mask[label_im == idx_value] = 255
@@ -661,11 +703,11 @@ def get_seedbed_coordinates(binary_img, idx=None):
     remove_pixel = mask_size[label_im]
     closing_img_thres[remove_pixel] = 0
     seedbed_mask = closing_img_thres
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '7_greater_object_frame.jpg',
-                seedbed_mask)"""
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_4_greater_object_frame.jpg',
+                seedbed_mask)
     seedbed_mask = cv2.dilate(seedbed_mask, SE2)
-    """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '8_greater_object_dilated_frame.jpg',
-                seedbed_mask)"""
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_5_greater_object_dilated_frame.jpg',
+                seedbed_mask)
 
     # ----
     if OS.lower() == 'windows':
@@ -819,7 +861,6 @@ def split_video_frames(VIDEO_PATH):
 
     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) / frames_frequency)
     frame_indexes = frames_frequency * np.arange(frames)
-
     current_frame_name = 1000
     currentframe = 0
 
@@ -827,7 +868,8 @@ def split_video_frames(VIDEO_PATH):
 
         # reading from frame
         ret, frame = cap.read()
-
+        # if index > 150 * frames_frequency:
+        #    break
         if ret:
             # if video is still left continue creating images
             name = PATH_ROOT + SLASH + '1_VIDEO_SPLIT' + SLASH + str(current_frame_name) + '_frame.jpg'
@@ -1127,6 +1169,48 @@ def trim_by_center(trimmed_by_right_images_list):
     return output_images_list
 
 
+def identify_util_frames_range(frames_list):
+    print('Identifying')
+    OS = platform.system()
+    print(OS)
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS.lower() == 'linux':
+        SLASH = "/"
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    first_frame = 0
+    last_frame = 0
+    idx = 1000
+    height, width = frames_list[0].shape[0], frames_list[0].shape[1]
+    # print("Height: ", height)
+    h_structuring_element = int(np.floor(height * 0.06))
+    w_structuring_element = int(np.floor(width * 0.12))
+    radio_for_circle = int((h_structuring_element + w_structuring_element)/2)
+    cirular_structuring_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (radio_for_circle, radio_for_circle))
+    for each_frame in frames_list:
+        ch_b_frame = pcv.rgb2gray_lab(each_frame, 'b')
+        threshold_value, img_thresh = cv2.threshold(ch_b_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_thresh)
+        img_thresh_bitwised = cv2.bitwise_not(img_thresh)
+        eroded_frame = cv2.erode(img_thresh_bitwised, cirular_structuring_element)
+        # Analysis of connected componentes
+        label_im, nb_labels = ndimage.label(eroded_frame)
+
+        sizes_labels = ndimage.sum(eroded_frame, label_im, range(nb_labels + 1))
+
+        mask_size = sizes_labels < (width * height) * 0.25
+        remove_pixel = mask_size[label_im]
+
+        eroded_frame[remove_pixel] = 0
+        dilated_frame = cv2.dilate(eroded_frame, cirular_structuring_element)
+        label_im, nb_labels = ndimage.label(dilated_frame)
+        print("Number of objects on frame " + str(idx) + " ==> " + str(nb_labels) + " objects")
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_frame.jpg',
+                        dilated_frame)
+        idx += 1
+    return first_frame, last_frame
+
+
 def homogenize_image_set(path):
     print("Homogenizing image set...")
     #  Splits video
@@ -1153,8 +1237,16 @@ def homogenize_image_set(path):
     standard_size = int(np.ceil(frames_list[0].shape[0] * 1.3)), int(np.ceil(frames_list[0].shape[1] * 1.275))
     init_frame_found = False
     idx_frame = 1000
+    # first_frame, last_frame = identify_util_frames_range(frames_list)
+    first_frame = 1040  # 1040
+    last_frame = 2410
+    print("Frames quantity: ", len(frames_list))
     for each_frame in frames_list:
-        if 1037 <= idx_frame <= 1981:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1016 <= idx_frame <= 1392 P_Smart_2, 1052 <= idx_frame <= 1367 P_10_Lite
+        print("IDX_FRAME: ", idx_frame)
+        if first_frame <= idx_frame <= last_frame:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1016 <= idx_frame <= 1392 P_Smart_2, 1052 <= idx_frame <= 1367 P_10_Lite
+            # if idx_frame > 1120:
+            #    print("IDX_frame break: ", idx_frame)
+            #    break
             print("Started correct_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
             print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -1199,6 +1291,14 @@ def homogenize_image_set(path):
     return final_images_list
 
 
+def routine_test(path):
+    print("Started split_video_frames() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    frames_list = split_video_frames(path)  # pending generates frame_list into function
+    print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    print(len(frames_list), " frames after removed")
+    first_frame, last_frame = identify_util_frames_range(frames_list)
+
+
 if __name__ == '__main__':
     """path = '/home/mrwolf/Projects/Gepar - UdeA/Flowers/Capiros - UdeA Project/REPO/SICOP/images/'
     source_path = "../../images/"
@@ -1222,17 +1322,20 @@ if __name__ == '__main__':
         SLASH = "\\"
     elif OS.lower() == 'linux':
         SLASH = "/"
-
+    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'Capture_21_08_2020' + SLASH + 'VID_20200821_6.mp4'
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_1.mp4'
-    VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_2.mp4'
+    # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_2.mp4'
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'Huawei_P_10_Lite_VID_20200117.mp4'
     print("Started")
+    # routine_test(VIDEO_PATH)
     homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
     print("Started at ", init_time.strftime("%Y-%m-%d %H:%M:%S"))
     print("Finished at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    """idx_frame = 1374
-    IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "images" + SLASH + 'check' + SLASH + 'original' + SLASH + str(idx_frame) + "_frame.png"
+    """idx_frame = 1058
+    # IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "images" + SLASH + 'check' + SLASH + 'original' + SLASH + str(idx_frame) + "_frame.png"
+    IMAGE_PATH = os.path.dirname(
+        os.path.abspath(__file__)) + SLASH + "4_ANGLE_CORRECTED_FRAME" + SLASH + str(idx_frame) + "_frame.png"
     image = imageio.imread((IMAGE_PATH))
     print("Rows: " + str(image.shape[0]) + ", cols: " + str(image.shape[1]))
     # just_plants = create_mask_filled_by_plants(image)
@@ -1245,12 +1348,12 @@ if __name__ == '__main__':
     coordinates = get_seedbed_coordinates(just_plants)
     just_seedbed = get_seedbed(image, coordinates)
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '10_just_seedbed_frame.jpg',
-                just_seedbed)
+                just_seedbed)"""
     # create_plants_mask(image)
-    """
+
 
     """print("Started")
-    idx_frame = 1120
+    idx_frame = 1058
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     IMAGE_PATH = PATH_ROOT + SLASH + "4_ANGLE_CORRECTED_FRAME" + SLASH + str(
         idx_frame) + "_frame.jpg"
