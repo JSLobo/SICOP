@@ -26,8 +26,8 @@ def correct_angle(img_obj, idx=None):
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH):
-            os.makedirs(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH)
+        if not os.path.exists(PATH_ROOT + SLASH + '3_ANGLE_CORRECTED_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '3_ANGLE_CORRECTED_FRAME' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -193,19 +193,20 @@ def correct_angle(img_obj, idx=None):
     ax14.imshow(final_rotation, cmap="gray")
     ax14.set_xlabel("Final rotation", fontsize=14)'''
 
+    corrected_angle = result[0]
     # 10 - Correct angle in original img
     rotation_on_original_image = rotate_image(queryImg, result[0])
     # print("Rotation on original image data type :", rotation_on_original_image.dtype)
     # cropped_img, blackAndWhiteImage, rotation_on_original_image
     if not idx is None:
-        cv2.imwrite(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH + str(idx) + '_frame.png',
+        cv2.imwrite(PATH_ROOT + SLASH + '3_ANGLE_CORRECTED_FRAME' + SLASH + str(idx) + '_frame.png',
                     rotation_on_original_image)
     # image = imageio.imread(PATH_ROOT + SLASH + '4_ANGLE_CORRECTED_FRAME' + SLASH + str(idx) + '_frame.jpg')
     # print("Rotation on compressed image data type :", image.dtype)
     img_obj = imgObj.ImageObj(rotation_on_original_image, 0, 0)
     """cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '0_image_angle_corrected_frame.jpg',
                 img_obj.get_image())"""
-    return img_obj
+    return img_obj, corrected_angle
 
 
 def get_largest_line_setup(thresholded_image):
@@ -309,7 +310,7 @@ def get_largest_line_setup(thresholded_image):
     return voting_options[voting_election[1]]
 
 
-def create_plants_mask(BGR_image):
+def create_plants_mask(BGR_image, idx=None):
     print("Creating plants mask")
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     OS = platform.system()
@@ -321,22 +322,95 @@ def create_plants_mask(BGR_image):
     a_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'a')
     b_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'b')
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_RGB2LAB_frame.jpg', l_channel)
-    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_1_a_channel_RGB2LAB_frame.jpg', a_channel)
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_1_a_channel_RGB2LAB_frame.jpg', a_channel)
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'b_channel_RGB2LAB_frame.jpg', b_channel)
     # l_thresh = pcv.threshold.binary(gray_img=l_channel, threshold=150, max_value=255, object_type='light')
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_tresh_frame.jpg', l_thresh)
     # img_binary = pcv.threshold.binary(gray_img=a_channel, threshold=0, max_value=255, object_type='dark')
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_binary)
     threshold_value, img_thresh = cv2.threshold(a_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_2_a_channel_tresh_frame.jpg', img_thresh)
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_2_a_channel_tresh_frame.jpg', img_thresh)
     img_thresh_bitwised = cv2.bitwise_not(img_thresh)
-    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '1_3_a_channel_tresh_bitwised_frame.jpg', img_thresh_bitwised)
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_3_a_channel_tresh_bitwised_frame.jpg', img_thresh_bitwised)
     result = img_thresh_bitwised
     # dim = np.expand_dims(img_thresh_bitwised, axis=2)
     # new_mask = np.concatenate((dim, dim, dim), axis=2)
     # result = BGR_image * new_mask
     # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'a_channel_color_space_frame.jpg', result)
     return result
+
+
+def trim_black_stripes_by_angle(RGB, angle, idx=None):
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS.lower() == 'linux':
+        SLASH = "/"
+    # angle = 1
+    # initial_heigth = 1920
+    # initial_width = 1080
+    initial_heigth = RGB.shape[0]
+    initial_width = RGB.shape[1]
+    R2 = initial_heigth
+    R1 = initial_width
+    # print("Sin of 1º: ", math.sin(math.radians(angle)))
+    # print("Cos of 1º: ", math.cos(math.radians(angle)))
+
+    H = int(np.ceil((R2 * math.cos(math.radians(abs(angle))) - R1 * math.sin(math.radians(abs(angle)))) / math.cos(
+        math.radians(2 * abs(angle)))))
+    W = int(np.ceil((R1 * math.cos(math.radians(abs(angle))) - R2 * math.sin(math.radians(abs(angle)))) / math.cos(
+        math.radians(2 * abs(angle)))))
+
+    # width_enclosing_square = int(np.ceil(1920/math.sin(math.radians(angle))))
+    # heigth_enclosing_square = int(np.ceil(width_enclosing_square*math.cos(math.radians(angle))))
+
+    y1 = int(np.ceil(W * math.sin(math.radians(abs(angle))) * math.cos(math.radians(abs(angle)))))
+    y3 = y1
+    x1 = int(np.ceil(R2 * math.sin(math.radians(abs(angle))) - W * (math.sin(math.radians(abs(angle)))) ** 2))
+    x2 = x1
+    y2 = y1 + H
+    y4 = y2
+    x4 = x2 + W
+    x3 = x4
+
+    # print("Width of enclosing square: ", W)
+    # print("Heigth of enclosing square: ", H)
+    # print("Coordinates point 1: ", x1, " and ", y1)
+    # print("Coordinates point 2: ", x2, " and ", y2)
+    # print("Coordinates point 3: ", x3, " and ", y3)
+    # print("Coordinates point 4: ", x4, " and ", y4)
+
+    if (y1 >= y3):
+        init_row = y1
+    else:
+        init_row = y3
+
+    if (y2 <= y4):
+        final_row = y2
+    else:
+        final_row = y4
+
+    if (x1 >= x2):
+        init_col = x1
+    else:
+        init_col = x2
+
+    if (x3 <= x4):
+        final_col = x3
+    else:
+        final_col = x4
+    # print("Init row: ", init_row)
+    # print("Final row: ", final_row)
+    # print("Init col: ", init_col)
+    # print("Final col: ", final_col)
+    RGB = RGB[init_row:final_row, init_col:final_col]
+    # RGB = RGB[init_col:final_col, init_row:final_row]
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '0_angle_corrected_frame.jpg', RGB)
+    return RGB
 
 
 def create_mask_filled_by_plants(BGR_image):
@@ -570,6 +644,7 @@ def check_small_object_to_remove(sizes_labels, min_limit_area, min_limit_area_fo
     print("Small labels: ", small_labels)
     print("Small labels type: ", type(small_labels))
     big_labels = sizes_labels/255 > min_limit_area_for_big_object
+    print("Big labels: ", big_labels)
     labels_to_remove = np.zeros(len(sizes_labels)).astype(bool)
     print("Lables to remove: ", labels_to_remove)
     print("Labels to remove type: ", type(labels_to_remove))
@@ -607,8 +682,8 @@ def get_seedbed_coordinates(binary_img, idx=None):
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + SLASH + '5_SEEDBED_MASK' + SLASH):
-            os.makedirs(PATH_ROOT + SLASH + '5_SEEDBED_MASK' + SLASH)
+        if not os.path.exists(PATH_ROOT + SLASH + '4_SEEDBED_MASK' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '4_SEEDBED_MASK' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -617,7 +692,7 @@ def get_seedbed_coordinates(binary_img, idx=None):
                 binary_img)
     rows, cols = binary_img.shape[0], binary_img.shape[1]
     min_limit_area = (rows * cols) * 0.05
-    min_limit_area_big_object = (rows * cols) * 0.2
+    min_limit_area_big_object = (rows * cols) * 0.10
 
     SE = cv2.getStructuringElement(cv2.MORPH_RECT, (int(np.ceil(cols * 0.95)), 1))  # horizontal line
     SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.05))))  # vertical line
@@ -737,7 +812,7 @@ def get_seedbed_coordinates(binary_img, idx=None):
 
     # ----
     if not idx is None:
-        cv2.imwrite(PATH_ROOT + SLASH + '5_SEEDBED_MASK' + SLASH + str(idx) + '_frame.jpg', seedbed_mask)
+        cv2.imwrite(PATH_ROOT + SLASH + '4_SEEDBED_MASK' + SLASH + str(idx) + '_frame.jpg', seedbed_mask)
 
     return coordinates
 
@@ -759,14 +834,14 @@ def get_seedbed(image, seedbed_coordinates, idx=None):
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + SLASH + '6_SEEDBED' + SLASH):
-            os.makedirs(PATH_ROOT + SLASH + '6_SEEDBED' + SLASH)
+        if not os.path.exists(PATH_ROOT + SLASH + '5_SEEDBED' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '5_SEEDBED' + SLASH)
 
             # if not created then raise error
     except OSError:
         print('Error: Creating directory of data')
     if not idx is None:
-        cv2.imwrite(PATH_ROOT + SLASH + '6_SEEDBED' + SLASH + str(idx) + '_frame.jpg', seedbed_mask)
+        cv2.imwrite(PATH_ROOT + SLASH + '5_SEEDBED' + SLASH + str(idx) + '_frame.jpg', seedbed_mask)
     # print(seedbed_coordinates[0][1], seedbed_coordinates[2][1])
     return seedbed_mask
 
@@ -855,9 +930,9 @@ def split_video_frames(VIDEO_PATH):
     fps = cap.get(cv2.CAP_PROP_FPS)
     fps = int(np.floor(fps))
     if fps == 30:
-        frames_frequency = 2  # before each 5th frames, now 10% of fps
+        frames_frequency = 5  # before each 5th frames, now 10% of fps
     elif fps == 60:
-        frames_frequency = 4  # before each 10th frames, now 10% of fps
+        frames_frequency = 10  # before each 10th frames, now 10% of fps
 
     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) / frames_frequency)
     frame_indexes = frames_frequency * np.arange(frames)
@@ -868,7 +943,7 @@ def split_video_frames(VIDEO_PATH):
 
         # reading from frame
         ret, frame = cap.read()
-        # if index > 150 * frames_frequency:
+        # if index > 210 * frames_frequency:
         #    break
         if ret:
             # if video is still left continue creating images
@@ -939,8 +1014,8 @@ def scale(image_obj_list, reference_height_factor):
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + SLASH + '7_SCALED_FRAME' + SLASH):
-            os.makedirs(PATH_ROOT + SLASH + '7_SCALED_FRAME' + SLASH)
+        if not os.path.exists(PATH_ROOT + SLASH + '6_SCALED_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '6_SCALED_FRAME' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -958,7 +1033,7 @@ def scale(image_obj_list, reference_height_factor):
         img_dim = int(((each_tuple[0].get_image()).shape[1]) * rescale_factor), int(
             ((each_tuple[0].get_image()).shape[0]) * rescale_factor)
         scaled_img = cv2.resize(each_tuple[0].get_image(), img_dim, interpolation=cv2.INTER_AREA)
-        cv2.imwrite(PATH_ROOT + SLASH + '7_SCALED_FRAME' + SLASH + str(idx) + '_frame.jpg', scaled_img)
+        cv2.imwrite(PATH_ROOT + SLASH + '6_SCALED_FRAME' + SLASH + str(idx) + '_frame.jpg', scaled_img)
         scaled_img_obj = imgObj.ImageObj(scaled_img, 0, 0)
         scaled_img_obj_list.append(scaled_img_obj)
         idx += 1
@@ -993,8 +1068,8 @@ def center_seedbed(image_obj, standard_size, idx=None):
     try:
 
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH):
-            os.makedirs(PATH_ROOT + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH)
+        if not os.path.exists(PATH_ROOT + SLASH + '7_CENTERED_STANDARD_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '7_CENTERED_STANDARD_FRAME' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -1017,7 +1092,7 @@ def center_seedbed(image_obj, standard_size, idx=None):
     bottom_row = plants_mask.shape[0]
     print("Bottom row: ", bottom_row)
     standard_frame[initial_row:initial_row + bottom_row, :width, :] = complete_image[:, :, :]
-    cv2.imwrite(PATH_ROOT + SLASH + SLASH + '8_CENTERED_STANDARD_FRAME' + SLASH + str(idx) + '_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + SLASH + '7_CENTERED_STANDARD_FRAME' + SLASH + str(idx) + '_frame.jpg',
                 standard_frame)
     centred_frame_standard_img_obj = imgObj.ImageObj(standard_frame, 0, 0)
     return centred_frame_standard_img_obj
@@ -1039,8 +1114,8 @@ def trim_by_right(images_list):
         SLASH = "/"
     try:
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + SLASH + '9_TRIMMED_FRAME' + SLASH):
-            os.makedirs(PATH_ROOT + SLASH + '9_TRIMMED_FRAME' + SLASH)
+        if not os.path.exists(PATH_ROOT + SLASH + '8_TRIMMED_FRAME' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '8_TRIMMED_FRAME' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -1081,7 +1156,7 @@ def trim_by_right(images_list):
         each_image = each_image_obj.get_image()
         output_image = each_image[init_row:end_row, init_col:end_col, :]
         output_images_list.append(output_image)
-        cv2.imwrite(PATH_ROOT + SLASH + SLASH + '9_TRIMMED_FRAME' + SLASH + str(idx_frame) + '_frame.jpg',
+        cv2.imwrite(PATH_ROOT + SLASH + SLASH + '8_TRIMMED_FRAME' + SLASH + str(idx_frame) + '_frame.jpg',
                     output_image)
         idx_frame += 1
     return output_images_list
@@ -1146,8 +1221,8 @@ def trim_by_center(trimmed_by_right_images_list):
         SLASH = "/"
     try:
         # creating a folder named data
-        if not os.path.exists(PATH_ROOT + SLASH + '10_TRIMMED_FRAME_TO_STITCH' + SLASH):
-            os.makedirs(PATH_ROOT + SLASH + '10_TRIMMED_FRAME_TO_STITCH' + SLASH)
+        if not os.path.exists(PATH_ROOT + SLASH + '9_TRIMMED_FRAME_TO_STITCH' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '9_TRIMMED_FRAME_TO_STITCH' + SLASH)
 
             # if not created then raise error
     except OSError:
@@ -1163,7 +1238,7 @@ def trim_by_center(trimmed_by_right_images_list):
     for image in trimmed_by_right_images_list:
         output_image = image[:, init_col:end_col, :]
         output_images_list.append(output_image)
-        cv2.imwrite(PATH_ROOT + SLASH + SLASH + '10_TRIMMED_FRAME_TO_STITCH' + SLASH + str(idx_frame) + '.jpg',
+        cv2.imwrite(PATH_ROOT + SLASH + SLASH + '9_TRIMMED_FRAME_TO_STITCH' + SLASH + str(idx_frame) + '.jpg',
                     output_image)
         idx_frame += 1
     return output_images_list
@@ -1238,20 +1313,23 @@ def homogenize_image_set(path):
     init_frame_found = False
     idx_frame = 1000
     # first_frame, last_frame = identify_util_frames_range(frames_list)
-    first_frame = 1040  # 1040
-    last_frame = 2410
+    first_frame = 1017  # 1040
+    last_frame = 1567  # 2410
     print("Frames quantity: ", len(frames_list))
     for each_frame in frames_list:
         print("IDX_FRAME: ", idx_frame)
         if first_frame <= idx_frame <= last_frame:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1016 <= idx_frame <= 1392 P_Smart_2, 1052 <= idx_frame <= 1367 P_10_Lite
-            # if idx_frame > 1120:
+            # if idx_frame > 1131:
             #    print("IDX_frame break: ", idx_frame)
             #    break
             print("Started correct_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            angle_corrected_img_obj = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
+            angle_corrected_img_obj, angle_corrected = correct_angle(imgObj.ImageObj(each_frame, 0, 0), idx_frame)
             print("Finished successfully at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            print("Started create_mask_plants() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            plant_mask = create_plants_mask(angle_corrected_img_obj.get_image())
+            print("Started trim_black_stripes_by_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            trimmed_angle_corrected = trim_black_stripes_by_angle(angle_corrected_img_obj.get_image(), angle_corrected, idx_frame)
+            print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print("Started trim_black_stripes_by_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            plant_mask = create_plants_mask(trimmed_angle_corrected, idx_frame)
             print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             print("Started get_seedbed_contour_rect_coordinates() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             seedbed_coordinates = get_seedbed_coordinates(plant_mask, idx_frame)
