@@ -691,8 +691,8 @@ def get_seedbed_coordinates(binary_img, idx=None):
     cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_0_binary_frame.jpg',
                 binary_img)
     rows, cols = binary_img.shape[0], binary_img.shape[1]
-    min_limit_area = (rows * cols) * 0.05
-    min_limit_area_big_object = (rows * cols) * 0.10
+    min_limit_area = (rows * cols) * 0.125
+    min_limit_area_big_object = (rows * cols) * 0.125
 
     SE = cv2.getStructuringElement(cv2.MORPH_RECT, (int(np.ceil(cols * 0.95)), 1))  # horizontal line
     SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.05))))  # vertical line
