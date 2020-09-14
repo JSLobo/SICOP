@@ -343,6 +343,48 @@ def create_plants_mask(BGR_image, idx=None):
     return result
 
 
+def create_plants_color_mask(BGR_image, idx=None):
+    print("Creating plants mask")
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS.lower() == 'linux':
+        SLASH = "/"
+    l_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'l')
+    a_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'a')
+    b_channel = pcv.rgb2gray_lab(BGR_image.copy(), 'b')
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_RGB2LAB_frame.jpg', l_channel)
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_1_a_channel_RGB2LAB_frame.jpg', a_channel)
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'b_channel_RGB2LAB_frame.jpg', b_channel)
+    # l_thresh = pcv.threshold.binary(gray_img=l_channel, threshold=150, max_value=255, object_type='light')
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'l_channel_tresh_frame.jpg', l_thresh)
+    # img_binary = pcv.threshold.binary(gray_img=a_channel, threshold=0, max_value=255, object_type='dark')
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_binary)
+    threshold_value, img_thresh = cv2.threshold(a_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_2_a_channel_tresh_frame.jpg', img_thresh)
+    """img_thresh_bitwised = cv2.bitwise_not(img_thresh)
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_3_a_channel_tresh_bitwised_frame.jpg', img_thresh_bitwised)
+    BW_3_ch = np.stack((img_thresh_bitwised,)*3, axis=-1)"""
+    # print(BGR_image)
+    # print(type(BW_3_ch))
+    # print(BW_3_ch.shape)
+    color_mask = BGR_image.copy()
+    # color_mask[np.tile(~BW_3_ch, (1,1))] = 0
+    color_mask[img_thresh == 255] = 0
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_4_a_channel_color_mask_frame.jpg',
+                    color_mask)
+    # dim = np.expand_dims(img_thresh_bitwised, axis=2)
+    # new_mask = np.concatenate((dim, dim, dim), axis=2)
+    # result = BGR_image * new_mask
+    # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'a_channel_color_space_frame.jpg', result)
+    return color_mask
+
+
 def trim_black_stripes_by_angle(RGB, angle, idx=None):
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
     if OS.lower() == 'windows':
@@ -507,6 +549,7 @@ def find_major_rectangle_area(set_of_rects_coordinates):
     rects_area = np.empty(len(set_of_rects_coordinates))
     index = 0
     for rect_tuple in set_of_rects_coordinates:
+        print("Rect tuple: ", rect_tuple)
         rects_area[index] = int(rect_tuple[3] * rect_tuple[2])
         index += 1
     max_index = np.argmax(rects_area, axis=0)
@@ -515,8 +558,23 @@ def find_major_rectangle_area(set_of_rects_coordinates):
     return max_index
 
 
-def get_seedbed_contour_rect_coordinates(RGB_image):
+def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     print("Getting seedbed contour rect coordinates")
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+    OS = platform.system()
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS.lower() == 'linux':
+        SLASH = "/"
+    try:
+
+        # creating a folder named data
+        if not os.path.exists(PATH_ROOT + SLASH + '4_SEEDBED_MASK' + SLASH):
+            os.makedirs(PATH_ROOT + SLASH + '4_SEEDBED_MASK' + SLASH)
+
+            # if not created then raise error
+    except OSError:
+        print('Error: Creating directory of data')
     #   Using object centroid coordinates to compute distance between
 
     #   1 - Get individual plant bounding circle
@@ -548,11 +606,24 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
         # im_with_contours = cv2.drawContours(RGB_image.copy(), contours, -1, (0,0,255), 2)
         im_with_circle_bounding = cv2.circle(drawing, (int(centers[i][0]), int(centers[i][1])), int(radius[i]), color,
                                              2)
-
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_1_circle_bounding_frame.jpg', im_with_circle_bounding)
     #   2 - Get maximum radius value of individuals plants bounding circles
-
+    outliers = []
+    threshold = 3
+    mean = np.mean(radius)
+    std = np.std(radius)
+    print("Mean: ", mean)
+    print("Standar deviation: ", std)
+    for y in radius:
+        z_score = (y - mean)/std
+        if np.abs(z_score) > threshold:
+            outliers.append(y)
+    if outliers:
+        for each_value in outliers:
+            index = radius.index(each_value)
+            del radius[index]
     print("Radius maximum value: ", math.ceil(max(radius)))
-
     max_radius = math.ceil(max(radius))
     kernel_width = math.ceil(max_radius * 2)
     kernel_height = math.ceil(max_radius)
@@ -565,48 +636,103 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
         # img = cv2.dilate(img_erode, circular_structure) #---- reduce los artefactos oscuros
         im_dilated = cv2.dilate(thresh, circular_structure)
 
-    #   5 - Isolate main seedbed
-    source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(im_dilated, cv2.RETR_TREE,
-                                                                         cv2.CHAIN_APPROX_SIMPLE)
-    # print(type(seedbed_contours))
-    # seedbed_contours = max(seedbed_contours, key=cv2.contourArea)
-    # print(type(seedbed_contours))
-    #   6 - Getting main seedbed polygon
+    rows, cols = RGB_image.shape[0], RGB_image.shape[1]
+    min_limit_area = (rows * cols) * 0.125
+    min_limit_area_big_object = (rows * cols) * 0.125
+
+    SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.05))))  # vertical line
+    SE2 = cv2.getStructuringElement(cv2.MORPH_RECT, (cols * 2, 1))  # horizontal line
+    print("S3 Diamond factor: ", int(rows * 0.01))
+    # removes small objects by connected components analysis
+    # nlabel, labels = cv2.connectedComponents(closing_img_thres, connectivity=8)
+    structure = [[1, 1, 1],  # structure for a connectivity analysis of 8 components
+                 [1, 1, 1],
+                 [1, 1, 1]]
+    label_im, nb_labels = ndimage.label(im_dilated, structure)
+
+    sizes_labels = ndimage.sum(im_dilated, label_im, range(nb_labels + 1))
+    for each in sizes_labels:
+        print(str(each / 255) + " vs to limit area: " + str(min_limit_area))
+    # mask_size = sizes_labels/255 < min_limit_area
+    labels_to_remove = check_small_object_to_remove(sizes_labels, min_limit_area, min_limit_area_big_object)
+    # big_objects = sizes_labels/255 < min_limit_area_big_object
+
+    print("Size_labels type: ", type(sizes_labels))
+    print("Mask size: ", labels_to_remove)
+    print("Mask size type: ", type(labels_to_remove))
+    remove_pixel = labels_to_remove[label_im]
+    im_dilated[remove_pixel] = 0
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_2_small_objects_removed_frame.jpg',
+                im_dilated)
+    # -----
+    closing_img_thres = cv2.morphologyEx(im_dilated, cv2.MORPH_CLOSE, SE1)
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_3_closing_frame.jpg',
+                closing_img_thres)
+    """filled_image = ndimage.binary_fill_holes(closing_img_thres.copy(), structure=np.ones((20,20)))
+    print(filled_image.astype(int))
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '5_filled_frame.jpg',
+                filled_image.astype(int))
+    im_floodfill = closing_img_thres.copy()
+    # Mask used to flood filling
+    h, w = closing_img_thres.shape[:2]
+    mask = np.zeros((h+2, w+2), np.uint8)
+    # Flood fill from point (0, 0)
+    cv2.floodFill(im_floodfill, mask, (0, 0), 0)
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '5_floodfill_frame.jpg',
+                im_floodfill)
+    # Invert floodfilled image
+    im_floodfill_inv = cv2.bitwise_not(im_floodfill)
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '6_floodfill_inv_frame.jpg',
+                im_floodfill_inv)
+
+    # Combine the to image to get the foreground
+    im_out = closing_img_thres | im_floodfill_inv
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '7_foreground_frame.jpg',
+                im_out)"""""
+    """# im_out = im_out * 255
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '5_fill_holes_frame.jpg',
+                im_out)"""
+
+    # -----
+    # Select the greater object by connected components analysis
+    label_im, nb_labels = ndimage.label(closing_img_thres, structure)
+
+    sizes_labels = ndimage.sum(closing_img_thres, label_im, range(nb_labels + 1))
+    print(sizes_labels.dtype)
+    max_value = np.max(sizes_labels)
+    print("Max value: ", max_value)
+    for each in sizes_labels:
+        print(str(each) + " vs to limit area: " + str(min_limit_area))
+    # idx_value = np.where(sizes_labels == max_value)
+    # seedbed_mask = im_out * 0
+    # seedbed_mask[label_im == idx_value] = 255
+    mask_size = sizes_labels < max_value
+    remove_pixel = mask_size[label_im]
+    closing_img_thres[remove_pixel] = 0
+    seedbed_mask = closing_img_thres
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_4_greater_object_frame.jpg',
+                seedbed_mask)
+    seedbed_mask = cv2.dilate(seedbed_mask, SE2)
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_5_greater_object_dilated_frame.jpg',
+                seedbed_mask)
+
+    # ----
+    if OS.lower() == 'windows':
+        source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
+                                                                             cv2.CHAIN_APPROX_SIMPLE)
+    elif OS.lower() == 'linux':
+        source_image, seedbed_contours, seedbed_hierarchy = cv2.findContours(seedbed_mask, cv2.RETR_TREE,
+                                                                             cv2.CHAIN_APPROX_SIMPLE)
+
+    # Getting main seedbed polygon
     # Approximate contours to polygons + get bounding rects
     contours_poly = [None] * len(seedbed_contours)
     bound_rect = [None] * len(seedbed_contours)
     for i, c in enumerate(seedbed_contours):
         contours_poly[i] = cv2.approxPolyDP(c, 3, True)
         bound_rect[i] = cv2.boundingRect(contours_poly[i])
-    print(bound_rect)
-    print(len(bound_rect))
-    # print(type(bound_rect))
-    # bound_rect = max(bound_rect, key=cv2.contourArea)
-    # bound_rect = get_mayor_area_boundrect(bound_rec)
-    # print(type(bound_rect))
-    drawing_im = np.zeros((im_gray.shape[0], im_gray.shape[1], 3), dtype=np.uint8)
-    # Draw polygonal contour + bounding circles
-    for i in range(len(seedbed_contours)):  # len(seedbed_contours)
-        color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
-        im_with_contours = cv2.drawContours(drawing_im, contours_poly, i, color)
-        # im_with_contours = cv2.drawContours(RGB_image.copy(), contours, -1, (0,0,255), 2)
-        im_with_rect_bounding = cv2.rectangle(drawing_im, (int(bound_rect[i][0]), int(bound_rect[i][1])), \
-                                              (int(bound_rect[i][0] + bound_rect[i][2]),
-                                               int(bound_rect[i][1] + bound_rect[i][3])), color, 2)
 
     max_area_rect_index = find_major_rectangle_area(bound_rect)
-
-    drawing_seedbed = np.zeros((im_gray.shape[0], im_gray.shape[1], 3), dtype=np.uint8)
-    color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
-    seedbed_with_contours = cv2.drawContours(drawing_seedbed, contours_poly, i, color)
-    # im_with_contours = cv2.drawContours(RGB_image.copy(), contours, -1, (0,0,255), 2)
-    seedbed_with_rect_bounding = cv2.rectangle(drawing_seedbed, (
-        int(bound_rect[max_area_rect_index][0]), int(bound_rect[max_area_rect_index][1])), \
-                                               (int(
-                                                   bound_rect[max_area_rect_index][0] + bound_rect[max_area_rect_index][
-                                                       2]), int(
-                                                   bound_rect[max_area_rect_index][1] + bound_rect[max_area_rect_index][
-                                                       3])), color, 2)
     max_area_rect_atributes = bound_rect[max_area_rect_index]
     top_left = (max_area_rect_atributes[0], max_area_rect_atributes[1])
     bottom_left = (max_area_rect_atributes[0], max_area_rect_atributes[1] + max_area_rect_atributes[3])
@@ -614,9 +740,13 @@ def get_seedbed_contour_rect_coordinates(RGB_image):
     bottom_right = (
         max_area_rect_atributes[0] + max_area_rect_atributes[2],
         max_area_rect_atributes[1] + max_area_rect_atributes[3])
-    seedbed_coordinates = (top_left, top_right, bottom_left, bottom_right)
+    coordinates = (top_left, top_right, bottom_left, bottom_right)
 
-    return seedbed_coordinates  # , circles_contour, im_with_rect_bounding, seedbed_with_rect_bounding
+    # ----
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + '4_SEEDBED_MASK' + SLASH + str(idx) + '_frame.jpg', seedbed_mask)
+
+    return coordinates
 
 
 def get_seedbed_mask(img_obj):  # 10_Frames_zona_de_plantulas alternative solution
@@ -1309,7 +1439,7 @@ def homogenize_image_set(path):
     frames_list.append(image)"""
     # -------
     images_list = []
-    standard_size = int(np.ceil(frames_list[0].shape[0] * 1.3)), int(np.ceil(frames_list[0].shape[1] * 1.275))
+    standard_size = int(np.ceil(frames_list[0].shape[0] * 1.35)), int(np.ceil(frames_list[0].shape[1] * 1.275))
     init_frame_found = False
     idx_frame = 1000
     # first_frame, last_frame = identify_util_frames_range(frames_list)
@@ -1329,10 +1459,11 @@ def homogenize_image_set(path):
             trimmed_angle_corrected = trim_black_stripes_by_angle(angle_corrected_img_obj.get_image(), angle_corrected, idx_frame)
             print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             print("Started trim_black_stripes_by_angle() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            plant_mask = create_plants_mask(trimmed_angle_corrected, idx_frame)
+            plant_mask = create_plants_color_mask(trimmed_angle_corrected, idx_frame)
             print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             print("Started get_seedbed_contour_rect_coordinates() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            seedbed_coordinates = get_seedbed_coordinates(plant_mask, idx_frame)
+            # seedbed_coordinates = get_seedbed_coordinates(plant_mask, idx_frame)
+            seedbed_coordinates = get_seedbed_contour_rect_coordinates(plant_mask, idx_frame)
             print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             print("Started get_seedbed_mask() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             only_seedbed = get_seedbed(angle_corrected_img_obj.get_image().copy(), seedbed_coordinates, idx_frame)
@@ -1410,6 +1541,16 @@ if __name__ == '__main__':
     print("Finished with success =D")
     print("Started at ", init_time.strftime("%Y-%m-%d %H:%M:%S"))
     print("Finished at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    """idx_frame = 1020
+    IMAGE_PATH = os.path.dirname(
+        os.path.abspath(__file__)) + SLASH + "3_ANGLE_CORRECTED_FRAME" + SLASH + str(
+        idx_frame) + "_frame.png"
+    image = imageio.imread(IMAGE_PATH)
+    plants_color_mask = create_plants_color_mask(image, idx_frame)
+    coordinates = get_seedbed_contour_rect_coordinates(plants_color_mask, idx_frame)
+    get_seedbed(image, coordinates, idx_frame)"""
+
     """idx_frame = 1058
     # IMAGE_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + "images" + SLASH + 'check' + SLASH + 'original' + SLASH + str(idx_frame) + "_frame.png"
     IMAGE_PATH = os.path.dirname(
