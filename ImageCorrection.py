@@ -1466,12 +1466,12 @@ def homogenize_image_set(path):
             seedbed_coordinates = get_seedbed_contour_rect_coordinates(plant_mask, idx_frame)
             print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             print("Started get_seedbed_mask() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            only_seedbed = get_seedbed(angle_corrected_img_obj.get_image().copy(), seedbed_coordinates, idx_frame)
+            only_seedbed = get_seedbed(trimmed_angle_corrected.copy(), seedbed_coordinates, idx_frame)
             print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             only_seedbed_img_obj = imgObj.ImageObj(only_seedbed, 0, 0)
             if init_frame_found or not is_trash_frame(only_seedbed_img_obj):
                 init_frame_found = True
-                images_list.append((angle_corrected_img_obj, seedbed_coordinates))
+                images_list.append((imgObj.ImageObj(trimmed_angle_corrected, 0, 0), seedbed_coordinates))
             # idx_frame += 1
         idx_frame += 1
     print("Started establish_reference_size_for_scaling() at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
