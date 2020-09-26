@@ -1375,7 +1375,7 @@ def trim_by_center(trimmed_by_right_images_list):
 
 
 def identify_util_frames_range(frames_list):
-    print('Identifying')
+    print('Identifying util frames range')
     OS = platform.system()
     print(OS)
     if OS.lower() == 'windows':
@@ -1383,8 +1383,8 @@ def identify_util_frames_range(frames_list):
     elif OS.lower() == 'linux':
         SLASH = "/"
     PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
-    first_frame = 0
-    last_frame = 0
+    init_frame = 0
+    final_frame = 0
     idx = 1000
     height, width = frames_list[0].shape[0], frames_list[0].shape[1]
     # print("Height: ", height)
@@ -1393,6 +1393,7 @@ def identify_util_frames_range(frames_list):
     radio_for_circle = int((h_structuring_element + w_structuring_element)/2)
     cirular_structuring_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (radio_for_circle, radio_for_circle))
     for each_frame in frames_list:
+        exist_circle(each_frame.copy(), idx)
         ch_b_frame = pcv.rgb2gray_lab(each_frame, 'b')
         threshold_value, img_thresh = cv2.threshold(ch_b_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         # cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + '2_a_channel_tresh_frame.jpg', img_thresh)
@@ -1410,10 +1411,36 @@ def identify_util_frames_range(frames_list):
         dilated_frame = cv2.dilate(eroded_frame, cirular_structuring_element)
         label_im, nb_labels = ndimage.label(dilated_frame)
         print("Number of objects on frame " + str(idx) + " ==> " + str(nb_labels) + " objects")
-        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_frame.jpg',
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'Circle_identification' + SLASH + str(idx) + '_frame.jpg',
                         dilated_frame)
         idx += 1
-    return first_frame, last_frame
+    return init_frame, final_frame
+
+
+def exist_circle(frame, idx):
+    OS = platform.system()
+    print(OS)
+    if OS.lower() == 'windows':
+        SLASH = "\\"
+    elif OS.lower() == 'linux':
+        SLASH = "/"
+    PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    existence = False
+    center_coordinates = (0, 0)
+    gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    bluerred_img = cv2.medianBlur(gray_img, 5)
+    color_img = cv2.cvtColor(bluerred_img, cv2.COLOR_GRAY2BGR)
+    circles = cv2.HoughCircles(bluerred_img, cv2.HOUGH_GRADIENT, 1, 120, param1=100, param2=30, minRadius=100, maxRadius=150)
+    circles = np.uint16(np.around(circles))
+    for each in circles[0, :]:
+        #  Outer Circle
+        cv2.circle(frame, (each[0], each[1]), each[2], (0, 255, 0), 2)
+        #  Center of the circle
+        cv2.circle(frame, (each[0], each[1]), 2, (0, 0, 255), 5)
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + 'Circle_identification' + SLASH + str(idx) + '_b_frame.jpg',
+                frame)
+    return existence, center_coordinates
 
 
 def homogenize_image_set(path):
@@ -1442,13 +1469,13 @@ def homogenize_image_set(path):
     standard_size = int(np.ceil(frames_list[0].shape[0] * 1.35)), int(np.ceil(frames_list[0].shape[1] * 1.275))
     init_frame_found = False
     idx_frame = 1000
-    # first_frame, last_frame = identify_util_frames_range(frames_list)
-    first_frame = 1017  # 1040
-    last_frame = 1567  # 2410
+    # init_frame, final_frame = identify_util_frames_range(frames_list)
+    init_frame = 1017  # 1040
+    final_frame = 1567  # 2410
     print("Frames quantity: ", len(frames_list))
     for each_frame in frames_list:
         print("IDX_FRAME: ", idx_frame)
-        if first_frame <= idx_frame <= last_frame:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1016 <= idx_frame <= 1392 P_Smart_2, 1052 <= idx_frame <= 1367 P_10_Lite
+        if init_frame <= idx_frame <= final_frame:  # <= 1378, 1137 <= idx_frame <= 1556 P_Smart_1, 1016 <= idx_frame <= 1392 P_Smart_2, 1052 <= idx_frame <= 1367 P_10_Lite
             # if idx_frame > 1131:
             #    print("IDX_frame break: ", idx_frame)
             #    break
@@ -1505,7 +1532,8 @@ def routine_test(path):
     frames_list = split_video_frames(path)  # pending generates frame_list into function
     print("Finished successfully  at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     print(len(frames_list), " frames after removed")
-    first_frame, last_frame = identify_util_frames_range(frames_list)
+    init_frame, final_frame = identify_util_frames_range(frames_list)
+    print("Init frame: " + str(init_frame) + ", Final frame: " + str(final_frame))
 
 
 if __name__ == '__main__':
@@ -1536,8 +1564,8 @@ if __name__ == '__main__':
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_2.mp4'
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'Huawei_P_10_Lite_VID_20200117.mp4'
     print("Started")
-    # routine_test(VIDEO_PATH)
-    homogenize_image_set(VIDEO_PATH)
+    routine_test(VIDEO_PATH)
+    # homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
     print("Started at ", init_time.strftime("%Y-%m-%d %H:%M:%S"))
     print("Finished at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
