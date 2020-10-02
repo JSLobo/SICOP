@@ -372,6 +372,30 @@ def create_plants_color_mask(BGR_image, idx=None):
     # print(BGR_image)
     # print(type(BW_3_ch))
     # print(BW_3_ch.shape)
+    # removes small objects by connected components analysis #
+    # nlabel, labels = cv2.connectedComponents(closing_img_thres, connectivity=8)
+    structure = [[1, 1, 1],  # structure for a connectivity analysis of 8 components
+                 [1, 1, 1],
+                 [1, 1, 1]]
+    label_im, nb_labels = ndimage.label(img_thresh, structure)
+
+    sizes_labels = ndimage.sum(img_thresh, label_im, range(nb_labels + 1))
+    rows, cols = BGR_image.shape[0], BGR_image.shape[1]
+    limit_area = (rows * cols) * 0.1
+    #for each in sizes_labels:
+    #    print(str(each / 255) + " vs to limit area: " + str(min_limit_area))
+    mask_size = sizes_labels/255 < limit_area
+    # labels_to_remove = check_small_object_to_remove(sizes_labels, min_limit_area, min_limit_area_big_object)
+    # big_objects = sizes_labels/255 < min_limit_area_big_object
+
+    # print("Size_labels type: ", type(sizes_labels))
+    # print("Mask size: ", labels_to_remove)
+    # print("Mask size type: ", type(labels_to_remove))
+    remove_pixel = mask_size[label_im]
+    img_thresh[remove_pixel] = 0
+    if not idx is None:
+        cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_' + '1_3_a_small_removed_mask_frame.jpg',
+                    img_thresh)
     color_mask = BGR_image.copy()
     # color_mask[np.tile(~BW_3_ch, (1,1))] = 0
     color_mask[img_thresh == 255] = 0
@@ -586,7 +610,6 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     source_image, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # print(type(hierarchy))
     # print(len(contours[500]))
-
     # Approximate contours to polygons + get bounding circles
     contours_poly = [None] * len(contours)
     centers = [None] * len(contours)
@@ -597,6 +620,7 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     circles_contour = [centers, radius]
     print(radius)
     print(len(radius))
+    original_radius = radius.copy()
 
     drawing = np.zeros((im_gray.shape[0], im_gray.shape[1], 3), dtype=np.uint8)
     # Draw polygonal contour + bounding circles
@@ -615,29 +639,51 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     std = np.std(radius)
     print("Mean: ", mean)
     print("Standar deviation: ", std)
+    index = 0
     for y in radius:
         z_score = (y - mean)/std
         if np.abs(z_score) > threshold:
-            outliers.append(y)
+            outliers.append({'radius': y, 'index': index})
+        index += 1
     if outliers:
-        for each_value in outliers:
-            index = radius.index(each_value)
+        for each in outliers:
+            index = radius.index(each['radius'])
             del radius[index]
     print("Radius maximum value: ", math.ceil(max(radius)))
     max_radius = math.ceil(max(radius))
-    kernel_width = math.ceil(max_radius * 2)
-    kernel_height = math.ceil(max_radius)
+    mean_radius = np.mean(radius)
+    kernel_width = math.ceil(mean_radius * 2)
+    kernel_height = math.ceil(mean_radius * 0.85)
+
     #   3 - Getting circular structuring element
     circular_structure = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_width, kernel_height))
+    mask = np.zeros((im_gray.shape[0], im_gray.shape[1], 3), dtype=np.uint8)
 
+    print("Outliers: ", outliers)
+    idx_counter = 0
+    for radius in original_radius:
+        print("if " + str(radius) + ' < ' + str(mean_radius*0.75))
+        if radius < mean_radius*0.5:
+            #  del outliers[index]
+            print("Radius: ", radius)
+            color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
+            cv2.drawContours(mask, contours_poly, idx_counter, color)
+        idx_counter += 1
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_2_small_outiers_removed_frame.jpg',
+                mask)
+    thresh = cv2.bitwise_and(thresh, thresh, mask=mask)
+    # thresh[contours_poly[outlier['index']]] = 0
     #   4 - Getting seedbeds using circular structuring element and an opening
     for i in range(0, 1, 1):
         # img_erode = cv2.erode(thresh, circular_structure) #---- resalta lo brillante en forma circular
         # img = cv2.dilate(img_erode, circular_structure) #---- reduce los artefactos oscuros
         im_dilated = cv2.dilate(thresh, circular_structure)
 
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_3_dilated_circular_structure_frame.jpg',
+                im_dilated)
+
     rows, cols = RGB_image.shape[0], RGB_image.shape[1]
-    min_limit_area = (rows * cols) * 0.125
+    min_limit_area = (rows * cols) * 0.1
     min_limit_area_big_object = (rows * cols) * 0.125
 
     SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.05))))  # vertical line
@@ -662,11 +708,11 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     print("Mask size type: ", type(labels_to_remove))
     remove_pixel = labels_to_remove[label_im]
     im_dilated[remove_pixel] = 0
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_2_small_objects_removed_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_4_small_objects_removed_frame.jpg',
                 im_dilated)
     # -----
     closing_img_thres = cv2.morphologyEx(im_dilated, cv2.MORPH_CLOSE, SE1)
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_3_closing_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_5_closing_frame.jpg',
                 closing_img_thres)
     """filled_image = ndimage.binary_fill_holes(closing_img_thres.copy(), structure=np.ones((20,20)))
     print(filled_image.astype(int))
@@ -710,10 +756,10 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     remove_pixel = mask_size[label_im]
     closing_img_thres[remove_pixel] = 0
     seedbed_mask = closing_img_thres
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_4_greater_object_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_6_greater_object_frame.jpg',
                 seedbed_mask)
     seedbed_mask = cv2.dilate(seedbed_mask, SE2)
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_5_greater_object_dilated_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_7_greater_object_dilated_frame.jpg',
                 seedbed_mask)
 
     # ----
@@ -1564,8 +1610,8 @@ if __name__ == '__main__':
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_2.mp4'
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'Huawei_P_10_Lite_VID_20200117.mp4'
     print("Started")
-    routine_test(VIDEO_PATH)
-    # homogenize_image_set(VIDEO_PATH)
+    # routine_test(VIDEO_PATH)
+    homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
     print("Started at ", init_time.strftime("%Y-%m-%d %H:%M:%S"))
     print("Finished at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
