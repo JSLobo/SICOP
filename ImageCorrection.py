@@ -626,7 +626,7 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     print("Radius maximum value: ", math.ceil(max(radius)))
     max_radius = math.ceil(max(radius))
     kernel_width = math.ceil(max_radius * 2)
-    kernel_height = math.ceil(max_radius)
+    kernel_height = math.ceil(max_radius * 0.85)
     #   3 - Getting circular structuring element
     circular_structure = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_width, kernel_height))
 
@@ -636,8 +636,11 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
         # img = cv2.dilate(img_erode, circular_structure) #---- reduce los artefactos oscuros
         im_dilated = cv2.dilate(thresh, circular_structure)
 
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_2_dilated_circular_structure_frame.jpg',
+                im_dilated)
+
     rows, cols = RGB_image.shape[0], RGB_image.shape[1]
-    min_limit_area = (rows * cols) * 0.125
+    min_limit_area = (rows * cols) * 0.1
     min_limit_area_big_object = (rows * cols) * 0.125
 
     SE1 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(np.ceil(rows * 0.05))))  # vertical line
@@ -662,11 +665,11 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     print("Mask size type: ", type(labels_to_remove))
     remove_pixel = labels_to_remove[label_im]
     im_dilated[remove_pixel] = 0
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_2_small_objects_removed_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_3_small_objects_removed_frame.jpg',
                 im_dilated)
     # -----
     closing_img_thres = cv2.morphologyEx(im_dilated, cv2.MORPH_CLOSE, SE1)
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_3_closing_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_4_closing_frame.jpg',
                 closing_img_thres)
     """filled_image = ndimage.binary_fill_holes(closing_img_thres.copy(), structure=np.ones((20,20)))
     print(filled_image.astype(int))
@@ -710,10 +713,10 @@ def get_seedbed_contour_rect_coordinates(RGB_image, idx=None):
     remove_pixel = mask_size[label_im]
     closing_img_thres[remove_pixel] = 0
     seedbed_mask = closing_img_thres
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_4_greater_object_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_5_greater_object_frame.jpg',
                 seedbed_mask)
     seedbed_mask = cv2.dilate(seedbed_mask, SE2)
-    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_5_greater_object_dilated_frame.jpg',
+    cv2.imwrite(PATH_ROOT + SLASH + 'TEST' + SLASH + str(idx) + '_2_6_greater_object_dilated_frame.jpg',
                 seedbed_mask)
 
     # ----
@@ -1564,8 +1567,8 @@ if __name__ == '__main__':
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'P_Smart_VID_20200320_2.mp4'
     # VIDEO_PATH = os.path.dirname(os.path.abspath(__file__)) + SLASH + 'Huawei_P_10_Lite_VID_20200117.mp4'
     print("Started")
-    routine_test(VIDEO_PATH)
-    # homogenize_image_set(VIDEO_PATH)
+    # routine_test(VIDEO_PATH)
+    homogenize_image_set(VIDEO_PATH)
     print("Finished with success =D")
     print("Started at ", init_time.strftime("%Y-%m-%d %H:%M:%S"))
     print("Finished at ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
